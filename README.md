@@ -2,7 +2,7 @@
 
 ## 项目简介
 
-  这是一个宿舍电量监控系统，旨在定时监测并记录宿舍照明和空调设备的电量余额。本项目修改并整合 [TorCroft/ZZU-Electricity](https://github.com/TorCroft/ZZU-Electricity) 的监控逻辑，同时将原项目的 [ZZU-API](https://github.com/TorCroft/ZZU-API) 替换为更高效的 [ZZU.Py](https://github.com/Illustar0/ZZU.Py)，实现了宿舍电量余额的实时获取与监控。当电量低于用户设定的阈值时，系统会自动通过 **Server 酱** 、 **Telegram** 和 **邮件（新增）** 发送通知，提醒及时充值，避免晚上宿舍突然断电困扰。感谢 [@Illustar0](https://github.com/Illustar0) 和 [@SirTamago](https://github.com/SirTamago) 的帮助。本人也是 **门外汉** ，代码很简陋，欢迎提交 Issue 或 Pull Request。
+  这是一个宿舍电量监控系统，旨在定时监测并记录宿舍照明和空调设备的电量余额。本项目修改并整合 [TorCroft/ZZU-Electricity](https://github.com/TorCroft/ZZU-Electricity) 的监控逻辑，同时将原项目的 [ZZU-API](https://github.com/TorCroft/ZZU-API) 替换为更高效的 [ZZU.Py](https://github.com/Illustar0/ZZU.Py)，实现了宿舍电量余额的实时获取与监控。当电量低于用户设定的阈值时，系统会自动通过 **Server 酱** 、 **Telegram** 和 **邮件(新增)** 发送通知，提醒及时充值，避免晚上宿舍突然断电困扰。感谢 [@Illustar0](https://github.com/Illustar0) 和 [@SirTamago](https://github.com/SirTamago) 的帮助。本人也是 **门外汉** ，代码很简陋，欢迎提交 Issue 或 Pull Request。
 
 ## 部署教程
 
@@ -12,7 +12,7 @@
 ### 核心功能
 
 1. **实时电量监控**：通过 [ZZU.Py](https://github.com/Illustar0/ZZU.Py) 实时获取宿舍电量余额，监控照明和空调设备的用电情况。
-2. **智能提醒**：当电量低于设定阈值时，自动通过 Server 酱和 Telegram 发送通知，确保用户及时充值。
+2. **智能提醒**：当电量低于设定阈值时，自动通过 Server 酱，邮件 和 Telegram 发送通知，确保用户及时充值。
 3. **历史记录**：记录每月电量使用数据，支持查看和分析历史用电情况，帮助用户更好地管理电量。
 4. **多平台通知**：支持 Server 酱和 Telegram 两种通知方式，满足不同用户的需求。
 5. **数据版本控制**：电量数据会自动保存到新的 Git 分支中，以便查看历史记录并进行版本控制。
@@ -28,7 +28,7 @@
 
 - 每隔一段时间获取宿舍照明和空调的电量余额。
 - 自动判断电量状态，并根据设定的阈值（默认为5.0）发送警告通知。
-- 通过 Server 酱和 Telegram 通知宿舍住户电量状态。
+- 通过 Server 酱，邮件 和 Telegram 通知宿舍住户电量状态。
 - 提供一个简单的前端页面，显示电量数据和图表。
 
 ## 技术栈
