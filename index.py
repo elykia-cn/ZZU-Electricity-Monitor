@@ -158,7 +158,7 @@ class DataManager:
 
         json_files = [path.splitext(path.basename(it))[0] for it in glob(path.join(JSON_FOLDER_PATH, "????-??.json"))]
         json_files = sorted(json_files, key=lambda x: datetime.strptime(x, '%Y-%m'), reverse=True)
-        DataManager.dump_data_into_json(json_files, "./page/time.json")
+        DataManager.dump_data_into_json(json_files, "./page/data/time.json")
         logger.info("时间列表更新成功")
         return json_files
 
