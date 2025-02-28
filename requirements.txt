@@ -2,3 +2,4 @@ PyNaCl
 Requests
 Zzupy
 Pytz
+PyEmail
