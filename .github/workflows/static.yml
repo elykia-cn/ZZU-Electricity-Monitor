@@ -69,7 +69,7 @@ jobs:
       - name: Commit changes
         run: |
           mkdir pages
-          cp -r ./page/data ./page/favicon.ico ./page/index.html ./page/style.css  pages/
+          cp -r ./page/data ./page/favicon.ico ./page/index.html ./page/style.css ./page/README.md  pages/
           cd pages
           git init
           git add .
