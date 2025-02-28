@@ -139,7 +139,7 @@
                 .catch(error => console.error('Error setting up charts:', error));
         }
 
-        fetchData('./time.json').then(timeData => {
+        fetchData('./data/time.json').then(timeData => {
             const selectBox = document.getElementById('timeSplit');
             timeData.forEach(yearMonth => {
                 const optionElement = document.createElement('option');
