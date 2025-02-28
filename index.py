@@ -7,6 +7,8 @@ from zzupy import ZZUPy
 import requests
 import json
 import os
+import smtplib
+from email.mime.text import MIMEText
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +29,9 @@ ac_room = os.getenv("ac_room")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SERVERCHAN_KEYS = os.getenv("SERVERCHAN_KEYS")
+MAIL = os.getenv("EMAIL")
+SMTP_CODE = os.getenv("SMTP_CODE")
+SMTP_SERVER = os.getenv("SMTP_SERVER")
 
 class EnergyMonitor:
     def __init__(self):
@@ -70,7 +75,7 @@ class NotificationManager:
 
     @staticmethod
     def notify_admin(title, content):
-        """通过 Server 酱和 Telegram 发送通知"""
+        """通过 Server 酱、邮件和 Telegram 发送通知"""
         logger.info("准备发送通知...")
 
         if "⚠️警告" in content:
@@ -85,6 +90,29 @@ class NotificationManager:
                         logger.info(f"Server 酱通知发送成功，使用的密钥：{key}")
                     else:
                         logger.error(f"Server 酱通知发送失败，错误信息：{result.get('message')}")
+
+            
+            logger.info("电量低于阈值，通过邮件发送通知...")
+            msg = MIMEText(content, 'plain', 'utf-8')
+
+            msg['Subject'] = title
+            msg['From'] = EMAIL
+            msg['To'] = EMAIL
+
+            try:
+                client = smtplib.SMTP_SSL(SMTP_SERVER, smtplib.SMTP_SSL_PORT)
+                logger.info("连接到邮件服务器成功")
+            
+                client.login(MAIL, SMTP_CODE)
+                logger.info("登录成功")
+            
+                client.sendmail(MAIL, MAIL, msg.as_string())
+                logger.info("发送成功")
+                
+            except smtplib.SMTPException as e:
+                logger.error("发送邮件异常")
+            finally:
+                client.quit()
 
         logger.info("通过 Telegram 发送通知...")
         NotificationManager.notify_telegram(title, content)
@@ -155,10 +183,25 @@ class DataManager:
         """更新时间列表，获取存储的所有 JSON 文件名"""
         if not path.exists(JSON_FOLDER_PATH):
             raise FileNotFoundError(f"文件夹路径不存在：{JSON_FOLDER_PATH}")
-
+    
+        # 检查是否存在 time.json 文件，如果不存在则创建一个空文件
+        time_json_path = './page/data/time.json'
+        if not path.exists(time_json_path):
+            logger.warning("time.json 文件不存在，正在创建空文件...")
+            DataManager.dump_data_into_json([], time_json_path)
+        
+        # 如果 time.json 文件为空或内容无效，创建一个空列表
+        time_data = DataManager.load_data_from_json(time_json_path)
+        if not time_data:
+            time_data = []
+            DataManager.dump_data_into_json(time_data, time_json_path)
+    
+        # 获取 JSON 文件夹下所有符合条件的文件名并按时间排序
         json_files = [path.splitext(path.basename(it))[0] for it in glob(path.join(JSON_FOLDER_PATH, "????-??.json"))]
         json_files = sorted(json_files, key=lambda x: datetime.strptime(x, '%Y-%m'), reverse=True)
-        DataManager.dump_data_into_json(json_files, "./page/data/time.json")
+    
+        # 将最新的时间列表更新到 time.json 文件中
+        DataManager.dump_data_into_json(json_files, time_json_path)
         logger.info("时间列表更新成功")
         return json_files
 
