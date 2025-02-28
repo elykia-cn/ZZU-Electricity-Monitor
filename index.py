@@ -50,7 +50,7 @@ class EnergyMonitor:
 
 class NotificationManager:
     @staticmethod
-    def format_balance_report(lt_balance, ac_balance):
+    def format_balance_report(lt_balance, ac_balance, escape_dot=False):
         """格式化电量报告信息，按照电量状态生成充足/还行/警告的提示信息"""
         def get_status(balance):
             if balance > EXCELLENT_THRESHOLD:
@@ -63,9 +63,13 @@ class NotificationManager:
         lt_status = get_status(lt_balance)
         ac_status = get_status(ac_balance)
 
-        # 对电量值中的 '.' 进行转义
-        lt_balance_escaped = str(lt_balance).replace(".", "\\.")
-        ac_balance_escaped = str(ac_balance).replace(".", "\\.")
+        # 根据 escape_dot 参数决定是否转义 '.'
+        if escape_dot:
+            lt_balance_escaped = str(lt_balance).replace(".", "\\.")
+            ac_balance_escaped = str(ac_balance).replace(".", "\\.")
+        else:
+            lt_balance_escaped = str(lt_balance)
+            ac_balance_escaped = str(ac_balance)
 
         report = (
             f"💡 照明剩余电量：{lt_balance_escaped} 度（{lt_status}）\n"
@@ -74,16 +78,24 @@ class NotificationManager:
         return report
 
     @staticmethod
-    def notify_admin(title, content):
+    def notify_admin(title, balances):
         """通过 Server 酱、邮件和 Telegram 发送通知"""
         logger.info("准备发送通知...")
 
-        if "⚠️警告" in content:
+        # 生成邮件和 Server 酱的内容（不转义 '.'）
+        email_content = NotificationManager.format_balance_report(balances["lt_Balance"], balances["ac_Balance"], escape_dot=False)
+        if balances['lt_Balance'] <= THRESHOLD or balances['ac_Balance'] <= THRESHOLD:
+            email_content += "⚠️ 电量不足，请尽快充电！"
+        else:
+            email_content += "请及时关注电量，避免设备关闭。"
+
+        # 发送 Server 酱通知
+        if "⚠️警告" in email_content:
             logger.info("电量低于阈值，通过 Server 酱发送通知...")
             for key in SERVERCHAN_KEYS.split(','):
                 if key:
                     url = f"https://sctapi.ftqq.com/{key}.send"
-                    payload = {"title": title, "desp": content}
+                    payload = {"title": title, "desp": email_content}
                     response = requests.post(url, data=payload)
                     result = response.json()
                     if result.get("code") == 0:
@@ -91,31 +103,33 @@ class NotificationManager:
                     else:
                         logger.error(f"Server 酱通知发送失败，错误信息：{result.get('message')}")
 
-            
-            logger.info("电量低于阈值，通过邮件发送通知...")
-            msg = MIMEText(content, 'plain', 'utf-8')
+        # 发送邮件通知
+        logger.info("通过邮件发送通知...")
+        msg = MIMEText(email_content, 'plain', 'utf-8')
+        msg['Subject'] = title
+        msg['From'] = EMAIL
+        msg['To'] = EMAIL
 
-            msg['Subject'] = title
-            msg['From'] = EMAIL
-            msg['To'] = EMAIL
+        try:
+            client = smtplib.SMTP_SSL(SMTP_SERVER, smtplib.SMTP_SSL_PORT)
+            logger.info("连接到邮件服务器成功")
+            client.login(EMAIL, SMTP_CODE)
+            logger.info("登录成功")
+            client.sendmail(EMAIL, EMAIL, msg.as_string())
+            logger.info("邮件发送成功")
+        except smtplib.SMTPException as e:
+            logger.error(f"发送邮件异常：{e}")
+        finally:
+            client.quit()
 
-            try:
-                client = smtplib.SMTP_SSL(SMTP_SERVER, smtplib.SMTP_SSL_PORT)
-                logger.info("连接到邮件服务器成功")
-            
-                client.login(EMAIL, SMTP_CODE)
-                logger.info("登录成功")
-            
-                client.sendmail(EMAIL, EMAIL, msg.as_string())
-                logger.info("发送成功")
-                
-            except smtplib.SMTPException as e:
-                logger.error("发送邮件异常")
-            finally:
-                client.quit()
-
+        # 发送 Telegram 通知（转义 '.'）
         logger.info("通过 Telegram 发送通知...")
-        NotificationManager.notify_telegram(title, content)
+        telegram_content = NotificationManager.format_balance_report(balances["lt_Balance"], balances["ac_Balance"], escape_dot=True)
+        if balances['lt_Balance'] <= THRESHOLD or balances['ac_Balance'] <= THRESHOLD:
+            telegram_content += "⚠️ 电量不足，请尽快充电！"
+        else:
+            telegram_content += "请及时关注电量，避免设备关闭。"
+        NotificationManager.notify_telegram(title, telegram_content)
 
     @staticmethod
     def notify_telegram(title, content):
@@ -224,14 +238,12 @@ def main():
     monitor = EnergyMonitor()
     balances = monitor.get_energy_balance()
 
-    report_content = NotificationManager.format_balance_report(balances["lt_Balance"], balances["ac_Balance"])
-
     if balances['lt_Balance'] <= THRESHOLD or balances['ac_Balance'] <= THRESHOLD:
-        report_content += "⚠️ 电量不足，请尽快充电！"
-        NotificationManager.notify_admin("⚠️宿舍电量预警⚠️", report_content)
+        title = "⚠️宿舍电量预警⚠️"
     else:
-        report_content += "请及时关注电量，避免设备关闭。"
-        NotificationManager.notify_admin("🏠宿舍电量通报🏠", report_content)
+        title = "🏠宿舍电量通报🏠"
+
+    NotificationManager.notify_admin(title, balances)
 
     latest_record = {
         "time": DataManager.get_cst_time_str("%m-%d %H:%M:%S"),
