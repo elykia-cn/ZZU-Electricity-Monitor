@@ -53,6 +53,9 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SERVERCHAN_KEYS: ${{ secrets.SERVERCHAN_KEY }},${{ secrets.SERVERCHAN_KEY2 }},${{ secrets.SERVERCHAN_KEY3 }}
+          MAIL: ${{ secrets.EMAIL }}
+          SMTP_CODE: ${{ secrets.SMTP_CODE }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
         run: |
           python3 ./index.py
           python3 ./markdown.py >> $GITHUB_STEP_SUMMARY
