@@ -34,8 +34,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-
-
+      - name: Clone page branch into ./page folder
+        run: |
+          # 克隆仓库（仅克隆最新版本）
+          git clone --depth=1 --branch=page https://github.com/elykia-cn/Electricity-Balance.git /tmp/repo
+          
+          # 复制 data 文件夹内容到目标目录
+          cp -r /tmp/repo/data/* ./page/data/
+          
+          # 清理临时文件
+          rm -rf /tmp/repo
           
       - name: Run python script
         env:
