@@ -103,10 +103,10 @@ class NotificationManager:
                 client = smtplib.SMTP_SSL(SMTP_SERVER, smtplib.SMTP_SSL_PORT)
                 logger.info("连接到邮件服务器成功")
             
-                client.login(MAIL, SMTP_CODE)
+                client.login(EMAIL, SMTP_CODE)
                 logger.info("登录成功")
             
-                client.sendmail(MAIL, MAIL, msg.as_string())
+                client.sendmail(EMAIL, MAIL, msg.as_string())
                 logger.info("发送成功")
                 
             except smtplib.SMTPException as e:
