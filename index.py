@@ -106,7 +106,7 @@ class NotificationManager:
                 client.login(EMAIL, SMTP_CODE)
                 logger.info("登录成功")
             
-                client.sendmail(EMAIL, MAIL, msg.as_string())
+                client.sendmail(EMAIL, EMAIL, msg.as_string())
                 logger.info("发送成功")
                 
             except smtplib.SMTPException as e:
