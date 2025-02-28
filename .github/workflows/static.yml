@@ -34,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Clone page branch into ./page folder
+      - name: Clone page branch
         run: |
           # 克隆仓库（仅克隆最新版本）
           git clone --depth=1 --branch=page https://github.com/${{ github.repository }}.git /tmp/repo
