@@ -37,7 +37,7 @@ jobs:
       - name: Clone page branch into ./page folder
         run: |
           # 克隆仓库（仅克隆最新版本）
-          git clone --depth=1 --branch=page https://github.com/elykia-cn/Electricity-Balance.git /tmp/repo
+          git clone --depth=1 --branch=page https://github.com/elykia-cn/ZZU-Dorm-Electricity-Balance.git /tmp/repo
           
           # 复制 data 文件夹内容到目标目录
           cp -r /tmp/repo/data/* ./page/data/
