@@ -29,7 +29,7 @@ ac_room = os.getenv("ac_room")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 SERVERCHAN_KEYS = os.getenv("SERVERCHAN_KEYS")
-MAIL = os.getenv("EMAIL")
+EMAIL = os.getenv("EMAIL")
 SMTP_CODE = os.getenv("SMTP_CODE")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 
