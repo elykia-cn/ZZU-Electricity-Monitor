@@ -9,6 +9,9 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  TZ: Asia/Shanghai
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,7 +32,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
+
+
+
           
       - name: Run python script
         env:
@@ -45,46 +51,39 @@ jobs:
           python3 ./index.py
           python3 ./markdown.py >> $GITHUB_STEP_SUMMARY
         
-      - name: Check for changes
-        id: check_changes
-        run: echo "changes=$(git diff --shortstat HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Get last commit message
-        id: commit_message
-        run: echo "last_commit_message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+      - name: git config
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Push changes
-        if: ${{ steps.check_changes.outputs.changes != '' && !startsWith(steps.commit_message.outputs.last_commit_message, 'Updated at ') }}
+      - name: Commit changes
         run: |
-          git config --global user.email "${{ secrets.EMAIL }}"
-          git config --global user.name "${GITHUB_ACTOR}"
+          mkdir pages
+          cp -r ./page/data ./page/favicon.ico ./page/index.html ./page/style.css ./page/time.json pages/
+          cd pages
+          git init
           git add .
-          git commit -m "Updated at $(date -u +'%Y-%m-%d %H:%M:%S') UTC"
-          git push
-          
-      - name: Force push changes
-        if: ${{ steps.check_changes.outputs.changes != '' && startsWith(steps.commit_message.outputs.last_commit_message, 'Updated at ') }}
-        run: |
-          git config --global user.email "${{ secrets.EMAIL }}"
-          git config --global user.name "${GITHUB_ACTOR}"
-          git reset --soft HEAD^
-          git add .
-          git commit -m "Updated at $(date -u +'%Y-%m-%d %H:%M:%S') UTC"
-          git push --force
-      
+          git commit -m "⏱️ $(date +"%Y年%m月%d日-%H时%M分") GitHub Actions定时更新"
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:page
+
       - name: Setup Pages
-        if: ${{ steps.check_changes.outputs.changes != '' }}
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
-        if: ${{ steps.check_changes.outputs.changes != '' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: './page'
+  
+      - name: Delete Workflow Runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 30
+          keep_minimum_runs: 6
+
 
   deploy:
     needs: build
-    if: ${{ needs.build.outputs.changes != '' }}
     permissions:
       pages: write
       id-token: write
@@ -97,3 +96,17 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+
+  keepalive-workflow:
+    name: Keepalive Workflow
+    if: ${{ always() }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gautamkrishnar/keepalive-workflow@v2
+        with:
+          committer_username: "github-actions[bot]"
+          committer_email: "github-actions[bot]@users.noreply.github.com"
