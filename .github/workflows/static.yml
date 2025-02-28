@@ -38,10 +38,8 @@ jobs:
         run: |
           # 克隆仓库（仅克隆最新版本）
           git clone --depth=1 --branch=page https://github.com/elykia-cn/ZZU-Dorm-Electricity-Balance.git /tmp/repo
-          
           # 复制 data 文件夹内容到目标目录
           cp -r /tmp/repo/data/* ./page/data/
-          
           # 清理临时文件
           rm -rf /tmp/repo
           
@@ -82,8 +80,6 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-        with:
-          path: './page'
   
       - name: Delete Workflow Runs
         uses: Mattraks/delete-workflow-runs@v2
