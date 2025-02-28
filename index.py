@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 电量阈值
-THRESHOLD = 10.0
+THRESHOLD = 5.0
 EXCELLENT_THRESHOLD = 100.0
 
 # 数据存储文件夹路径
