@@ -78,6 +78,8 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: './page'
   
       - name: Delete Workflow Runs
         uses: Mattraks/delete-workflow-runs@v2
