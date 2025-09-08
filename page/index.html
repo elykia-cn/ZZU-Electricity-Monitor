@@ -17,7 +17,6 @@
             <label for="timeSplit">选择时间段:</label>
             <select id="timeSplit" onchange="updateChart()">
                 <option value="last_30_records">最近30条记录</option>
-                <!-- Options will be dynamically added here -->
             </select>
         </div>
         <div id="chart-container" class="chart-container"></div>
@@ -27,7 +26,6 @@
         const chartDom = document.getElementById('chart-container');
         const myChart = echarts.init(chartDom);
 
-        // 配置项
         let option = {
             title: {
                 text: '宿舍电量变化',
@@ -46,10 +44,9 @@
                         hour: '2-digit',
                         minute: '2-digit'
                     });
-                    
                     let result = timeStr + '<br/>';
                     params.forEach(function (item) {
-                        result += item.marker + ' ' + item.seriesName + ': ' + item.value[1] + ' kWh<br/>';
+                        result += item.marker + ' ' + item.seriesName + ': ' + item.value[1].toFixed(2) + ' kWh<br/>';
                     });
                     return result;
                 }
@@ -61,7 +58,6 @@
             xAxis: {
                 type: 'time',
                 name: '时间',
-                nameLocation: 'end',
                 axisLabel: {
                     formatter: function (value) {
                         const date = new Date(value);
@@ -79,80 +75,35 @@
                 name: '电量 (kWh)'
             },
             series: [
-                {
-                    name: '照明电量',
-                    type: 'line',
-                    showSymbol: true,
-                    symbolSize: 6,
-                    smooth: 0.5, // 启用平滑曲线
-                    data: [],
-                    lineStyle: {
-                        width: 2
-                    }
-                },
-                {
-                    name: '空调电量',
-                    type: 'line',
-                    showSymbol: true,
-                    symbolSize: 6,
-                    smooth: 0.5, // 启用平滑曲线
-                    data: [],
-                    lineStyle: {
-                        width: 2
-                    }
-                }
+                { name: '照明电量', type: 'line', smooth: true, showSymbol: false, data: [] },
+                { name: '空调电量', type: 'line', smooth: true, showSymbol: false, data: [] }
             ],
             dataZoom: [
-                {
-                    type: 'slider',
-                    xAxisIndex: 0,
-                    start: 0,
-                    end: 100
-                },
-                {
-                    type: 'inside',
-                    xAxisIndex: 0,
-                    start: 0,
-                    end: 100
-                }
+                { type: 'slider', xAxisIndex: 0, start: 0, end: 100 },
+                { type: 'inside', xAxisIndex: 0, start: 0, end: 100 }
             ]
         };
-
-        // 应用配置
         myChart.setOption(option);
 
-        // 窗口大小变化时重绘图表
-        window.addEventListener('resize', function() {
-            myChart.resize();
-        });
+        window.addEventListener('resize', () => myChart.resize());
 
-        /**
-         * 线性插值函数，用于填充数组中的 null 或 undefined 值
-         * @param {Array} dataArray - 原始数据数组
-         * @returns {Array} - 处理后的数组
-         */
+        // ------------------ 工具函数 ------------------
+
+        // 填充缺失值
         function interpolateMissingData(dataArray) {
             const processedData = [...dataArray];
-            
-            // 对每个字段进行插值
             ['lt_Balance', 'ac_Balance'].forEach(field => {
                 for (let i = 0; i < processedData.length; i++) {
-                    if (processedData[i][field] === null || processedData[i][field] === undefined) {
-                        // 向前查找第一个非空值
+                    if (processedData[i][field] == null) {
                         let prevIndex = i - 1;
-                        while (prevIndex >= 0 && processedData[prevIndex][field] === null) prevIndex--;
-                        
-                        // 向后查找第一个非空值
+                        while (prevIndex >= 0 && processedData[prevIndex][field] == null) prevIndex--;
                         let nextIndex = i + 1;
-                        while (nextIndex < processedData.length && processedData[nextIndex][field] === null) nextIndex++;
-                        
-                        // 如果前后都找到了有效值，进行线性插值
+                        while (nextIndex < processedData.length && processedData[nextIndex][field] == null) nextIndex++;
                         if (prevIndex >= 0 && nextIndex < processedData.length) {
                             const prevVal = processedData[prevIndex][field];
                             const nextVal = processedData[nextIndex][field];
                             const numSteps = nextIndex - prevIndex;
                             const stepVal = (nextVal - prevVal) / numSteps;
-                            
                             processedData[i][field] = prevVal + stepVal * (i - prevIndex);
                         } else if (prevIndex >= 0) {
                             processedData[i][field] = processedData[prevIndex][field];
@@ -164,42 +115,72 @@
                     }
                 }
             });
-
             return processedData;
         }
 
-        function fetchData(dataFilepath) {
-            return fetch(dataFilepath)
-                .then(response => response.json())
-                .catch(error => { 
-                    console.error('加载JSON错误:', error); 
-                    throw error; 
-                });
+        // 三次样条插值
+        function cubicSplineInterpolate(xs, ys, numPoints = 10) {
+            const n = xs.length;
+            if (n < 3) return xs.map((x, i) => [x, ys[i]]);
+            const h = new Array(n - 1);
+            for (let i = 0; i < n - 1; i++) h[i] = xs[i + 1] - xs[i];
+            const alpha = new Array(n).fill(0);
+            for (let i = 1; i < n - 1; i++) {
+                alpha[i] = (3 / h[i]) * (ys[i + 1] - ys[i]) - (3 / h[i - 1]) * (ys[i] - ys[i - 1]);
+            }
+            const l = new Array(n).fill(1);
+            const mu = new Array(n).fill(0);
+            const z = new Array(n).fill(0);
+            for (let i = 1; i < n - 1; i++) {
+                l[i] = 2 * (xs[i + 1] - xs[i - 1]) - h[i - 1] * mu[i - 1];
+                mu[i] = h[i] / l[i];
+                z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i];
+            }
+            const b = new Array(n - 1);
+            const c = new Array(n).fill(0);
+            const d = new Array(n - 1);
+            for (let j = n - 2; j >= 0; j--) {
+                c[j] = z[j] - mu[j] * c[j + 1];
+                b[j] = (ys[j + 1] - ys[j]) / h[j] - h[j] * (c[j + 1] + 2 * c[j]) / 3;
+                d[j] = (c[j + 1] - c[j]) / (3 * h[j]);
+            }
+            const result = [];
+            for (let i = 0; i < n - 1; i++) {
+                const step = (xs[i + 1] - xs[i]) / numPoints;
+                for (let k = 0; k <= numPoints; k++) {
+                    const x = xs[i] + k * step;
+                    const dx = x - xs[i];
+                    const y = ys[i] + b[i] * dx + c[i] * dx * dx + d[i] * dx * dx * dx;
+                    result.push([x, y]);
+                }
+            }
+            return result;
         }
 
-        function setupCharts(jsonData) {
-            // 1. 对原始数据进行插值处理，填充缺失值
-            const filledData = interpolateMissingData(jsonData);
+        // 加载数据文件
+        function fetchData(dataFilepath) {
+            return fetch(dataFilepath).then(r => r.json());
+        }
 
-            // 2. 转换时间格式为时间戳
+        // 设置图表
+        function setupCharts(jsonData) {
+            const filledData = interpolateMissingData(jsonData);
             const currentYear = new Date().getFullYear();
             const data = filledData.map(entry => {
-                const fullTimeStr = `${currentYear}-${entry.time}`;
-                const timestamp = new Date(fullTimeStr).getTime();
                 return {
                     ...entry,
-                    timestamp: timestamp
+                    timestamp: new Date(`${currentYear}-${entry.time}`).getTime()
                 };
-            });
+            }).sort((a, b) => a.timestamp - b.timestamp);
 
-            // 3. 按时间戳排序
-            data.sort((a, b) => a.timestamp - b.timestamp);
+            const xs = data.map(e => e.timestamp);
+            const ys_lt = data.map(e => e.lt_Balance);
+            const ys_ac = data.map(e => e.ac_Balance);
 
-            // 4. 准备图表数据
-            const ltData = data.map(entry => [entry.timestamp, entry.lt_Balance]);
-            const acData = data.map(entry => [entry.timestamp, entry.ac_Balance]);
+            // 样条插值
+            const ltData = cubicSplineInterpolate(xs, ys_lt, 20);
+            const acData = cubicSplineInterpolate(xs, ys_ac, 20);
 
-            // 5. 更新图表
             option.series[0].data = ltData;
             option.series[1].data = acData;
             myChart.setOption(option);
@@ -209,25 +190,21 @@
             const selectedYearMonth = document.getElementById('timeSplit').value;
             const dataFilepath = `./data/${selectedYearMonth}.json`;
             fetchData(dataFilepath)
-                .then(jsonData => { setupCharts(jsonData); })
-                .catch(error => console.error('图表设置错误:', error));
+                .then(jsonData => setupCharts(jsonData))
+                .catch(err => console.error('图表设置错误:', err));
         }
 
         // 初始化时间选择器
         fetchData('./data/time.json').then(timeData => {
             const selectBox = document.getElementById('timeSplit');
             timeData.forEach(yearMonth => {
-                const optionElement = document.createElement('option');
-                optionElement.value = yearMonth;
-                optionElement.text = yearMonth;
-                selectBox.add(optionElement);
+                const opt = document.createElement('option');
+                opt.value = yearMonth;
+                opt.text = yearMonth;
+                selectBox.add(opt);
             });
-
-            // 默认加载第一个选项的数据
-            if (timeData.length > 0) {
-                updateChart();
-            }
-        }).catch(error => console.error('加载时间数据错误:', error));
+            if (timeData.length > 0) updateChart();
+        });
     </script>
 </body>
 </html>
