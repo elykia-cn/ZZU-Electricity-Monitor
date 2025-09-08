@@ -6,7 +6,7 @@
 
 ## 部署教程
 
-详细的部署过程可以参考筱荷同学的教程 [郑州大学宿舍电量监控部署方法](https://rimrose.top/TEC/Tutorial_for_ZZU_Dorm_Electricity_Balance/)。
+详细的部署过程可以参考筱荷同学的教程 [郑州大学宿舍电量监控部署方法](https://rimrose.top/Tutorial_for_ZZU_Dorm_Electricity_Balance/)。
 
   
 ### 核心功能
