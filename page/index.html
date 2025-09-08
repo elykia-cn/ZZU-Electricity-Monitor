@@ -1,13 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <title>ZZU Dorm Electricity Balance</title>
+    <title>ZZU 宿舍电量监控</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script type="text/javascript" src="https://registry.npmmirror.com/echarts/5.6.0/files/dist/echarts.min.js"></script>
-    <link rel="stylesheet" href="./style.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #select-box {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #select-box label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        #select-box select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .chart-container {
+            height: 400px;
+            margin-bottom: 30px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 10px;
+            background-color: #fff;
+        }
+    </style>
     <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
 </head>
 
@@ -29,105 +70,164 @@
         const Chart1 = echarts.init(document.getElementById('chart-container1'));
         const Chart2 = echarts.init(document.getElementById('chart-container2'));
 
+        // 获取当前年份
+        const currentYear = new Date().getFullYear();
+        
         let option1 = {
             title: {
-                text: '照明电量',
-                textStyle: { fontSize: 20, fontWeight: 'bold' },
-                x: 'center',
-                y: 'top'
+                text: '照明电量变化趋势',
+                textStyle: { fontSize: 18, fontWeight: 'bold' },
+                left: 'center'
             },
-            xAxis: { 
-                name: '时间', 
-                nameLocation: 'end', 
-                type: 'category', 
-                data: [] 
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    return params[0].name + '<br/>' + 
+                           params[0].marker + params[0].seriesName + ': ' + params[0].value + ' kWh';
+                }
             },
-            yAxis: { 
-                name: '电量 (kWh)', 
-                type: 'value' 
+            xAxis: {
+                type: 'time',
+                name: '时间',
+                nameLocation: 'end',
+                axisLabel: {
+                    formatter: function(value) {
+                        const date = new Date(value);
+                        return echarts.time.format(date, '{MM}/{dd} {HH}:{mm}', false);
+                    }
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: '电量 (kWh)'
             },
             series: [{
+                name: '照明电量',
                 data: [],
                 type: 'line',
                 smooth: true,
-                label: { show: true, position: 'top' }
-            }],
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'cross' },
-                formatter: function (a) {
-                    return a[0].name + '<br/>' + a[0].marker + ' 照明电量: ' + a[0].value + ' kWh';
+                symbol: 'circle',
+                symbolSize: 8,
+                itemStyle: {
+                    color: '#5470c6'
+                },
+                lineStyle: {
+                    width: 3
+                },
+                markPoint: {
+                    data: [
+                        { type: 'max', name: '最大值' },
+                        { type: 'min', name: '最小值' }
+                    ]
                 }
-            },
+            }],
             dataZoom: [{
-                type: 'slider', 
-                start: 0, 
+                type: 'inside',
+                start: 0,
                 end: 100
-            }, {
-                type: 'inside', 
-                start: 0, 
-                end: 100
-            }]
+            }],
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            }
         };
 
         let option2 = {
             title: {
-                text: '空调电量',
-                textStyle: { fontSize: 20, fontWeight: 'bold' },
-                x: 'center',
-                y: 'top'
+                text: '空调电量变化趋势',
+                textStyle: { fontSize: 18, fontWeight: 'bold' },
+                left: 'center'
             },
-            xAxis: { 
-                name: '时间', 
-                nameLocation: 'end', 
-                type: 'category', 
-                data: [] 
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    return params[0].name + '<br/>' + 
+                           params[0].marker + params[0].seriesName + ': ' + params[0].value + ' kWh';
+                }
             },
-            yAxis: { 
-                name: '电量 (kWh)', 
-                type: 'value' 
+            xAxis: {
+                type: 'time',
+                name: '时间',
+                nameLocation: 'end',
+                axisLabel: {
+                    formatter: function(value) {
+                        const date = new Date(value);
+                        return echarts.time.format(date, '{MM}/{dd} {HH}:{mm}', false);
+                    }
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: '电量 (kWh)'
             },
             series: [{
+                name: '空调电量',
                 data: [],
                 type: 'line',
                 smooth: true,
-                label: { show: true, position: 'top' }
-            }],
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'cross' },
-                formatter: function (a) {
-                    return a[0].name + '<br/>' + a[0].marker + ' 空调电量: ' + a[0].value + ' kWh';
+                symbol: 'circle',
+                symbolSize: 8,
+                itemStyle: {
+                    color: '#91cc75'
+                },
+                lineStyle: {
+                    width: 3
+                },
+                markPoint: {
+                    data: [
+                        { type: 'max', name: '最大值' },
+                        { type: 'min', name: '最小值' }
+                    ]
                 }
-            },
+            }],
             dataZoom: [{
-                type: 'slider', 
-                start: 0, 
+                type: 'inside',
+                start: 0,
                 end: 100
-            }, {
-                type: 'inside', 
-                start: 0, 
-                end: 100
-            }]
+            }],
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            }
         };
 
         function fetchData(dataFilepath) {
             return fetch(dataFilepath)
                 .then(response => response.json())
-                .catch(error => { console.error('Error loading JSON:', error); throw error; });
+                .catch(error => { 
+                    console.error('加载JSON数据出错:', error); 
+                    throw error; 
+                });
         }
 
         function setupCharts(jsonData) {
-            const times = jsonData.map(function (entry) { return entry.time; });
-            const lt_balances = jsonData.map(function (entry) { return entry.lt_Balance; });
-            const ac_balances = jsonData.map(function (entry) { return entry.ac_Balance; });
+            // 转换数据格式：将月-日 时:分:秒转换为完整的时间戳
+            const ltData = jsonData.map(entry => {
+                const [monthDay, time] = entry.time.split(' ');
+                const [month, day] = monthDay.split('-');
+                const [hours, minutes, seconds] = time.split(':');
+                const dateStr = `${currentYear}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+                return [new Date(dateStr).getTime(), entry.lt_Balance];
+            });
             
-            option1.xAxis.data = times;
-            option1.series[0].data = lt_balances;
-            Chart1.setOption(option1);
+            const acData = jsonData.map(entry => {
+                const [monthDay, time] = entry.time.split(' ');
+                const [month, day] = monthDay.split('-');
+                const [hours, minutes, seconds] = time.split(':');
+                const dateStr = `${currentYear}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+                return [new Date(dateStr).getTime(), entry.ac_Balance];
+            });
 
-            option2.xAxis.data = times;
-            option2.series[0].data = ac_balances;
+            // 更新图表选项
+            option1.series[0].data = ltData;
+            option2.series[0].data = acData;
+
+            // 设置图表
+            Chart1.setOption(option1);
             Chart2.setOption(option2);
         }
 
@@ -136,9 +236,10 @@
             const dataFilepath = `./data/${selectedYearMonth}.json`;
             fetchData(dataFilepath)
                 .then(jsonData => { setupCharts(jsonData); })
-                .catch(error => console.error('Error setting up charts:', error));
+                .catch(error => console.error('设置图表时出错:', error));
         }
 
+        // 初始化页面
         fetchData('./data/time.json').then(timeData => {
             const selectBox = document.getElementById('timeSplit');
             timeData.forEach(yearMonth => {
@@ -148,8 +249,15 @@
                 selectBox.add(optionElement);
             });
 
+            // 默认加载最近30条记录
             updateChart();
-        }).catch(error => console.error('Error loading time data:', error));
+        }).catch(error => console.error('加载时间数据出错:', error));
+
+        // 响应窗口大小变化
+        window.addEventListener('resize', function() {
+            Chart1.resize();
+            Chart2.resize();
+        });
     </script>
 </body>
 
