@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -50,7 +49,9 @@
                     
                     let result = timeStr + '<br/>';
                     params.forEach(function (item) {
-                        result += item.marker + ' ' + item.seriesName + ': ' + item.value[1] + ' kWh<br/>';
+                        // 显示插值标记（如果有）
+                        const interpolatedMarker = item.data[2] ? '⚪ ' : ''; // 假设我们在数据中第三个元素标记是否为插值
+                        result += interpolatedMarker + item.marker + ' ' + item.seriesName + ': ' + item.value[1] + ' kWh<br/>';
                     });
                     return result;
                 }
@@ -83,27 +84,23 @@
                 {
                     name: '照明电量',
                     type: 'line',
-                    showSymbol: true,
-                    symbolSize: 8,
+                    showSymbol: true, // 显示所有数据点
+                    symbolSize: 6,
+                    smooth: 0.4, // 启用平滑曲线，并设置平滑度
                     data: [],
-                    markPoint: {
-                        data: [
-                            { type: 'max', name: '最大值' },
-                            { type: 'min', name: '最小值' }
-                        ]
+                    lineStyle: {
+                        width: 2
                     }
                 },
                 {
                     name: '空调电量',
                     type: 'line',
                     showSymbol: true,
-                    symbolSize: 8,
+                    symbolSize: 6,
+                    smooth: 0.4, // 启用平滑曲线，并设置平滑度
                     data: [],
-                    markPoint: {
-                        data: [
-                            { type: 'max', name: '最大值' },
-                            { type: 'min', name: '最小值' }
-                        ]
+                    lineStyle: {
+                        width: 2
                     }
                 }
             ],
@@ -131,6 +128,58 @@
             myChart.resize();
         });
 
+        /**
+         * 线性插值函数，用于填充数组中的 null 或 undefined 值
+         * @param {Array} dataArray - 原始数据数组（每个元素是对象，如 {time: "09-08 12:00", lt_Balance: 15.2, ac_Balance: 8.7}）
+         * @returns {Array} - 处理后的数组，缺失的数值已被插值填充
+         */
+        function interpolateMissingData(dataArray) {
+            // 首先确保所有必需的字段都存在，即使值为null
+            const processedData = dataArray.map(entry => {
+                return {
+                    time: entry.time,
+                    lt_Balance: (entry.lt_Balance === null || entry.lt_Balance === undefined) ? null : entry.lt_Balance,
+                    ac_Balance: (entry.ac_Balance === null || entry.ac_Balance === undefined) ? null : entry.ac_Balance
+                };
+            });
+
+            // 对每个字段进行插值
+            ['lt_Balance', 'ac_Balance'].forEach(field => {
+                for (let i = 0; i < processedData.length; i++) {
+                    if (processedData[i][field] === null) {
+                        // 向前查找第一个非空值
+                        let prevIndex = i - 1;
+                        while (prevIndex >= 0 && processedData[prevIndex][field] === null) prevIndex--;
+                        
+                        // 向后查找第一个非空值
+                        let nextIndex = i + 1;
+                        while (nextIndex < processedData.length && processedData[nextIndex][field] === null) nextIndex++;
+                        
+                        // 如果前后都找到了有效值，进行线性插值
+                        if (prevIndex >= 0 && nextIndex < processedData.length) {
+                            const prevVal = processedData[prevIndex][field];
+                            const nextVal = processedData[nextIndex][field];
+                            const numSteps = nextIndex - prevIndex;
+                            const stepVal = (nextVal - prevVal) / numSteps;
+                            
+                            processedData[i][field] = prevVal + stepVal * (i - prevIndex);
+                        } else if (prevIndex >= 0) {
+                            // 只有前面有值，沿用前面的值
+                            processedData[i][field] = processedData[prevIndex][field];
+                        } else if (nextIndex < processedData.length) {
+                            // 只有后面有值，沿用后面的值
+                            processedData[i][field] = processedData[nextIndex][field];
+                        } else {
+                            // 没有参考值，设置为0
+                            processedData[i][field] = 0;
+                        }
+                    }
+                }
+            });
+
+            return processedData;
+        }
+
         function fetchData(dataFilepath) {
             return fetch(dataFilepath)
                 .then(response => response.json())
@@ -141,10 +190,13 @@
         }
 
         function setupCharts(jsonData) {
-            // 转换时间格式为时间戳
+            // 1. 对原始数据进行插值处理，填充缺失值
+            const filledData = interpolateMissingData(jsonData);
+            console.log("插值后的数据:", filledData); // 可以在控制台查看处理后的数据
+
+            // 2. 转换时间格式为时间戳
             const currentYear = new Date().getFullYear();
-            const data = jsonData.map(entry => {
-                // 将时间字符串转换为完整的时间字符串，然后转换为时间戳
+            const data = filledData.map(entry => {
                 const fullTimeStr = `${currentYear}-${entry.time}`;
                 const timestamp = new Date(fullTimeStr).getTime();
                 return {
@@ -153,14 +205,14 @@
                 };
             });
 
-            // 按时间戳排序
+            // 3. 按时间戳排序
             data.sort((a, b) => a.timestamp - b.timestamp);
 
-            // 准备图表数据
+            // 4. 准备图表数据
             const ltData = data.map(entry => [entry.timestamp, entry.lt_Balance]);
             const acData = data.map(entry => [entry.timestamp, entry.ac_Balance]);
 
-            // 更新图表
+            // 5. 更新图表
             option.series[0].data = ltData;
             option.series[1].data = acData;
             myChart.setOption(option);
@@ -184,9 +236,11 @@
                 selectBox.add(optionElement);
             });
 
-            updateChart();
+            // 默认加载第一个选项的数据
+            if (timeData.length > 0) {
+                updateChart();
+            }
         }).catch(error => console.error('加载时间数据错误:', error));
     </script>
 </body>
-
 </html>
