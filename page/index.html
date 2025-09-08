@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="./style.css">
     <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
-    <script src="https://registry.npmmirror.com/echarts/6.0.0/files/dist/echarts.min.js"></script>
+    <script src="https://registry.npmmirror.com/echarts/5.6.0/files/dist/echarts.min.js"></script>
     <style>
         #main-container { width: 95%; margin: auto; }
         .chart-container { width: 100%; height: 400px; margin: 20px 0; }
@@ -29,21 +29,18 @@
         const chartLt = echarts.init(document.getElementById('chart-lt'));
         const chartAc = echarts.init(document.getElementById('chart-ac'));
 
-        // 公共配置模板
         function getBaseOption(title) {
             return {
                 title: { text: title, left: 'center' },
                 tooltip: {
                     trigger: 'axis',
                     formatter: params => {
-                        const p = params[0];
-                        if (!p.data[2]) return ''; // 只显示原始点
-                        const date = new Date(p.value[0]);
+                        const date = new Date(params[0].value[0]);
                         const timeStr = date.toLocaleString('zh-CN', {
                             month: '2-digit', day: '2-digit',
                             hour: '2-digit', minute: '2-digit'
                         });
-                        return `${timeStr}<br/>${p.seriesName}: ${p.value[1].toFixed(2)} kWh`;
+                        return `${timeStr}<br/>${params[0].seriesName}: ${params[0].value[1].toFixed(2)} kWh`;
                     }
                 },
                 xAxis: { type: 'time' },
@@ -57,8 +54,6 @@
         chartAc.setOption(getBaseOption('空调电量变化'));
 
         // ========== 工具函数 ==========
-
-        // 填补缺失值
         function interpolateMissingData(dataArray) {
             const processed = [...dataArray];
             ['lt_Balance', 'ac_Balance'].forEach(field => {
@@ -84,10 +79,9 @@
             return processed;
         }
 
-        // 三次样条插值
         function cubicSplineInterpolate(xs, ys, numPoints = 10) {
             const n = xs.length;
-            if (n < 3) return xs.map((x, i) => [x, ys[i]]);
+            if (n < 3) return xs.map((x, i) => [x, ys[i], true]);
             const h = new Array(n - 1);
             for (let i = 0; i < n - 1; i++) h[i] = xs[i + 1] - xs[i];
             const alpha = new Array(n).fill(0);
@@ -117,18 +111,17 @@
                     const x = xs[i] + k * step;
                     const dx = x - xs[i];
                     const y = ys[i] + b[i] * dx + c[i] * dx * dx + d[i] * dx * dx * dx;
-                    result.push([x, y]);
+                    // 插值点标记为 false
+                    result.push([x, y, k === 0 ? true : false]);
                 }
             }
             return result;
         }
 
-        // 数据加载
         function fetchData(filepath) {
             return fetch(filepath).then(r => r.json());
         }
 
-        // 绘制两个图表
         function setupCharts(jsonData) {
             const filled = interpolateMissingData(jsonData);
             const year = new Date().getFullYear();
@@ -137,19 +130,14 @@
             })).sort((a, b) => a.timestamp - b.timestamp);
 
             const xs = data.map(e => e.timestamp);
+            const ltDataRaw = cubicSplineInterpolate(xs, data.map(e => e.lt_Balance), 20);
+            const acDataRaw = cubicSplineInterpolate(xs, data.map(e => e.ac_Balance), 20);
 
-            // 原始点加标记 true
-            const ltRaw = data.map(e => [e.timestamp, e.lt_Balance, true]);
-            const acRaw = data.map(e => [e.timestamp, e.ac_Balance, true]);
+            const ltData = ltDataRaw.map(p => ({ value: [p[0], p[1]], symbol: p[2] ? 'circle' : 'none', symbolSize: 6 }));
+            const acData = acDataRaw.map(p => ({ value: [p[0], p[1]], symbol: p[2] ? 'circle' : 'none', symbolSize: 6 }));
 
-            // 插值点加标记 false
-            const ltInterp = cubicSplineInterpolate(xs, data.map(e => e.lt_Balance), 20)
-                                .map(d => [d[0], d[1], false]);
-            const acInterp = cubicSplineInterpolate(xs, data.map(e => e.ac_Balance), 20)
-                                .map(d => [d[0], d[1], false]);
-
-            chartLt.setOption({ series: [{ name: '照明电量', data: [...ltRaw, ...ltInterp] }] });
-            chartAc.setOption({ series: [{ name: '空调电量', data: [...acRaw, ...acInterp] }] });
+            chartLt.setOption({ series: [{ name: '照明电量', type: 'line', smooth: true, showSymbol: true, data: ltData }] });
+            chartAc.setOption({ series: [{ name: '空调电量', type: 'line', smooth: true, showSymbol: true, data: acData }] });
         }
 
         function updateCharts() {
