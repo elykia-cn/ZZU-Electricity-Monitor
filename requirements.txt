@@ -1,5 +1,4 @@
-PyNaCl
-Requests
-Zzupy
-Pytz
-PyEmail
+requests
+zzupy
+pytz
+tenacity
