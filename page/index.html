@@ -49,9 +49,7 @@
                     
                     let result = timeStr + '<br/>';
                     params.forEach(function (item) {
-                        // 显示插值标记（如果有）
-                        const interpolatedMarker = item.data[2] ? '⚪ ' : ''; // 假设我们在数据中第三个元素标记是否为插值
-                        result += interpolatedMarker + item.marker + ' ' + item.seriesName + ': ' + item.value[1] + ' kWh<br/>';
+                        result += item.marker + ' ' + item.seriesName + ': ' + item.value[1] + ' kWh<br/>';
                     });
                     return result;
                 }
@@ -84,9 +82,9 @@
                 {
                     name: '照明电量',
                     type: 'line',
-                    showSymbol: true, // 显示所有数据点
+                    showSymbol: true,
                     symbolSize: 6,
-                    smooth: 0.4, // 启用平滑曲线，并设置平滑度
+                    smooth: 0.5, // 启用平滑曲线
                     data: [],
                     lineStyle: {
                         width: 2
@@ -97,7 +95,7 @@
                     type: 'line',
                     showSymbol: true,
                     symbolSize: 6,
-                    smooth: 0.4, // 启用平滑曲线，并设置平滑度
+                    smooth: 0.5, // 启用平滑曲线
                     data: [],
                     lineStyle: {
                         width: 2
@@ -130,23 +128,16 @@
 
         /**
          * 线性插值函数，用于填充数组中的 null 或 undefined 值
-         * @param {Array} dataArray - 原始数据数组（每个元素是对象，如 {time: "09-08 12:00", lt_Balance: 15.2, ac_Balance: 8.7}）
-         * @returns {Array} - 处理后的数组，缺失的数值已被插值填充
+         * @param {Array} dataArray - 原始数据数组
+         * @returns {Array} - 处理后的数组
          */
         function interpolateMissingData(dataArray) {
-            // 首先确保所有必需的字段都存在，即使值为null
-            const processedData = dataArray.map(entry => {
-                return {
-                    time: entry.time,
-                    lt_Balance: (entry.lt_Balance === null || entry.lt_Balance === undefined) ? null : entry.lt_Balance,
-                    ac_Balance: (entry.ac_Balance === null || entry.ac_Balance === undefined) ? null : entry.ac_Balance
-                };
-            });
-
+            const processedData = [...dataArray];
+            
             // 对每个字段进行插值
             ['lt_Balance', 'ac_Balance'].forEach(field => {
                 for (let i = 0; i < processedData.length; i++) {
-                    if (processedData[i][field] === null) {
+                    if (processedData[i][field] === null || processedData[i][field] === undefined) {
                         // 向前查找第一个非空值
                         let prevIndex = i - 1;
                         while (prevIndex >= 0 && processedData[prevIndex][field] === null) prevIndex--;
@@ -164,13 +155,10 @@
                             
                             processedData[i][field] = prevVal + stepVal * (i - prevIndex);
                         } else if (prevIndex >= 0) {
-                            // 只有前面有值，沿用前面的值
                             processedData[i][field] = processedData[prevIndex][field];
                         } else if (nextIndex < processedData.length) {
-                            // 只有后面有值，沿用后面的值
                             processedData[i][field] = processedData[nextIndex][field];
                         } else {
-                            // 没有参考值，设置为0
                             processedData[i][field] = 0;
                         }
                     }
@@ -192,7 +180,6 @@
         function setupCharts(jsonData) {
             // 1. 对原始数据进行插值处理，填充缺失值
             const filledData = interpolateMissingData(jsonData);
-            console.log("插值后的数据:", filledData); // 可以在控制台查看处理后的数据
 
             // 2. 转换时间格式为时间戳
             const currentYear = new Date().getFullYear();
