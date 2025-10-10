@@ -84,7 +84,7 @@ class EnergyMonitor:
         self.zzupy = ZZUPy(ACCOUNT, PASSWORD)
         self.get_energy_balance = create_retry_decorator()(self._get_energy_balance)
 
-    async def _get_energy_balance_async(self) -> Dict[str, float]:
+    async def _get_energy_balance(self) -> Dict[str, float]:
         """使用 ZZUPy 库获取电量余额（实际实现）"""
         logger.info("尝试登录 ZZUPy 系统...")
         await self.zzupy.login()
@@ -95,12 +95,11 @@ class EnergyMonitor:
         ac_balance = await self.zzupy.get_remaining_energy(AC_ROOM)
         
         logger.info(f"照明剩余电量：{lt_balance} 度，空调剩余电量：{ac_balance} 度")
+        
         await self.zzupy.logout()
-        return {"lt_Balance": lt_balance, "ac_Balance": ac_balance}
+        logger.info("已登出 ZZUPy 系统")
 
-    def _get_energy_balance(self) -> Dict[str, float]:
-        """包装异步函数为同步调用"""
-        return asyncio.run(self._get_energy_balance_async())
+        return {"lt_Balance": lt_balance, "ac_Balance": ac_balance}
 
 
 class NotificationManager:
@@ -179,10 +178,41 @@ class NotificationManager:
         msg["To"] = EMAIL
 
         try:
-            with smtplib.SMTP_SSL(SMTP_SERVER, 465) as server:
-                server.login(EMAIL, SMTP_CODE)
-                server.send_message(msg)
-                logger.info("邮件发送成功")
+            smtp = smtplib.SMTP_SSL(SMTP_SERVER, 465)
+            smtp.login(EMAIL, SMTP_CODE)
+            smtp.send_message(msg)
+            smtp.quit()
+            logger.info("邮件通知发送成功")
         except Exception as e:
-            logger.error(f"邮件发送失败: {e}")
+            logger.error(f"邮件通知发送失败：{e}")
             raise
+
+
+async def main():
+    """主函数：负责协调电量获取与通知逻辑"""
+    energy_monitor = EnergyMonitor()
+    notification_manager = NotificationManager()
+
+    balances = await energy_monitor.get_energy_balance()
+
+    content = notification_manager.format_balance_report(
+        balances["lt_Balance"], 
+        balances["ac_Balance"]
+    )
+
+    logger.info("\n" + content)
+
+    # 检查是否低电量
+    if notification_manager.is_low_energy(balances):
+        title = "⚠️ 郑州大学宿舍电量警告"
+        logger.warning("检测到低电量，发送警告通知...")
+        notification_manager.send_serverchan_notification(title, content)
+        notification_manager.send_email_notification(title, content)
+    else:
+        title = "✅ 郑州大学宿舍电量正常"
+        logger.info("电量正常，发送日报通知...")
+        notification_manager.send_serverchan_notification(title, content)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
