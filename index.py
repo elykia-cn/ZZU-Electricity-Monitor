@@ -454,6 +454,8 @@ def main():
     
     data = DataManager.record_data(latest_record)
     DataManager.parse_and_update_data(data)
+    logger.info("程序运行结束")
+
 
 if __name__ == "__main__":
     main()
