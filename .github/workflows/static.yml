@@ -43,6 +43,7 @@ jobs:
           cp -r /tmp/repo/data/* ./page/data/
           # 清理临时文件
           rm -rf /tmp/repo
+          rm -rf ./page/data/tokens.zip
           
       - name: Run python script
         env:
