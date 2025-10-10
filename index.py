@@ -159,7 +159,7 @@ class EnergyMonitor:
             try:
                 logger.info("尝试使用保存的token登录...")
                 self.cas_client.set_token(token_data['user_token'], token_data['refresh_token'])
-                self.cas_client.login()  # 这会验证token的有效性
+                self.cas_client.login()
                 
                 if self.cas_client.logged_in:
                     logger.info("使用保存的token登录成功")
@@ -192,17 +192,29 @@ class EnergyMonitor:
             raise Exception("CAS认证失败，无法获取电量信息")
         
         logger.info("创建一卡通客户端并登录...")
-        with ECardClient(self.cas_client) as ecard:
-            ecard.login()
-            logger.info("一卡通系统登录成功")
-            
-            logger.info("获取照明和空调电量余额...")
-            lt_balance = ecard.get_remaining_energy(room=LT_ROOM)
-            ac_balance = ecard.get_remaining_energy(room=AC_ROOM)
-            
-            logger.info(f"照明剩余电量：{lt_balance} 度，空调剩余电量：{ac_balance} 度")
-            return {"lt_Balance": lt_balance, "ac_Balance": ac_balance}
+        try:
+            with ECardClient(self.cas_client) as ecard:
+                ecard.login()
+                logger.info("一卡通系统登录成功")
+                
+                logger.info("获取照明和空调电量余额...")
+                lt_balance = ecard.get_remaining_energy(room=LT_ROOM)
+                ac_balance = ecard.get_remaining_energy(room=AC_ROOM)
+                
+                logger.info(f"照明剩余电量：{lt_balance} 度，空调剩余电量：{ac_balance} 度")
+                return {"lt_Balance": lt_balance, "ac_Balance": ac_balance}
+        finally:
+            # 确保资源被清理
+            self._cleanup()
 
+    def _cleanup(self):
+        """清理资源"""
+        try:
+            # 尝试关闭底层的 httpx 客户端
+            if hasattr(self.cas_client, '_client') and self.cas_client._client:
+                self.cas_client._client.close()
+        except Exception as e:
+            logger.debug(f"清理资源时出错: {e}")
 
 class NotificationManager:
     """通知管理器，负责发送各种通知"""
@@ -442,15 +454,6 @@ def main():
     
     data = DataManager.record_data(latest_record)
     DataManager.parse_and_update_data(data)
-    
-    # 强制清理资源
-    try:
-        if hasattr(monitor.cas_client, '_client'):
-            monitor.cas_client._client.close()
-    except Exception as e:
-        logger.debug(f"关闭CAS客户端时出错: {e}")
-    
-    logger.info("程序运行结束")
 
 if __name__ == "__main__":
     main()
