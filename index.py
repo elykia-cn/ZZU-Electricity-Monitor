@@ -84,10 +84,11 @@ request_retry = create_retry_decorator(
 
 
 class TokenManager:
-    """Token管理器，仅用 zipfile 加密 token"""
-
+    """Token管理器，负责token的保存和读取"""
+    
     @staticmethod
     def save_tokens(user_token: str, refresh_token: str) -> None:
+        """保存token到加密的zip文件"""
         try:
             token_data = {
                 "user_token": user_token,
@@ -95,34 +96,44 @@ class TokenManager:
                 "saved_at": DataManager.get_cst_time_str("%Y-%m-%d %H:%M:%S")
             }
             token_json = json.dumps(token_data, ensure_ascii=False, indent=2)
-
-            zip_path = f"{JSON_FOLDER_PATH}/tokens.zip"
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                zipf.writestr("tokens.json", token_json)
-                zipf.setpassword(PASSWORD.encode('utf-8'))  # 加密密码
-
-            logger.info(f"Token已保存到加密文件: {zip_path}")
+            
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                zip_file.writestr("tokens.json", token_json)
+                zip_file.setpassword(PASSWORD.encode('utf-8'))
+            
+            with open(TOKEN_ZIP_PATH, 'wb') as f:
+                f.write(zip_buffer.getvalue())
+            
+            logger.info(f"Token已保存到加密文件: {TOKEN_ZIP_PATH}")
         except Exception as e:
             logger.error(f"保存token失败: {e}")
             raise
 
     @staticmethod
-    def load_tokens() -> Optional[dict]:
+    def load_tokens() -> Optional[Dict[str, str]]:
+        """从加密的zip文件加载token"""
         try:
-            zip_path = f"{JSON_FOLDER_PATH}/tokens.zip"
-            if not os.path.exists(zip_path):
+            if not path.exists(TOKEN_ZIP_PATH):
                 logger.info("Token文件不存在，将使用账号密码登录")
                 return None
-
-            with zipfile.ZipFile(zip_path, 'r') as zipf:
-                zipf.setpassword(PASSWORD.encode('utf-8'))
-                with zipf.open("tokens.json") as f:
-                    token_data = json.load(f)
-
+            
+            with open(TOKEN_ZIP_PATH, 'rb') as f:
+                zip_buffer = io.BytesIO(f.read())
+            
+            with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
+                zip_file.setpassword(PASSWORD.encode('utf-8'))
+                with zip_file.open("tokens.json") as token_file:
+                    token_data = json.load(token_file)
+            
             logger.info(f"从文件加载token成功，保存时间: {token_data.get('saved_at', '未知')}")
             return token_data
+            
+        except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as e:
+            logger.warning(f"读取token文件失败，将使用账号密码登录: {e}")
+            return None
         except Exception as e:
-            logger.warning(f"加载token失败，将使用账号密码登录: {e}")
+            logger.error(f"加载token时发生错误: {e}")
             return None
 
 
