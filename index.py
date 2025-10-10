@@ -400,14 +400,15 @@ def main():
     DataManager.parse_and_update_data(data)
     logger.info("程序运行结束")
 
-    # === 以下为新增：防止程序卡死 ===
-    logging.shutdown()  # 清理日志
-    for t in threading.enumerate():
-        if t is not threading.main_thread():
-            logger.debug(f"等待线程退出: {t.name}")
-            t.join(timeout=2)
-    sys.exit(0)
-
-
 if __name__ == "__main__":
     main()
+
+    # 打印存活线程，辅助调试
+    for t in threading.enumerate():
+        print(f"存活线程: {t.name}, daemon={t.daemon}")
+
+    # 优雅退出
+    import time, os
+    logging.shutdown()
+    time.sleep(0.5)
+    os._exit(0)  # 确保彻底退出
