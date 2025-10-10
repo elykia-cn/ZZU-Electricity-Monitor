@@ -2,6 +2,8 @@ import logging
 import os
 import json
 import smtplib
+import zipfile
+import io
 from datetime import datetime
 from email.mime.text import MIMEText
 from glob import glob
@@ -31,6 +33,7 @@ logger = logging.getLogger(__name__)
 THRESHOLD = 10.0
 EXCELLENT_THRESHOLD = 100.0
 JSON_FOLDER_PATH = "./page/data"
+TOKEN_ZIP_PATH = path.join(JSON_FOLDER_PATH, "tokens.zip")
 
 # 重试配置常量
 RETRY_ATTEMPTS = 5
@@ -49,6 +52,7 @@ SERVERCHAN_KEYS = os.getenv("SERVERCHAN_KEYS")
 EMAIL = os.getenv("EMAIL")
 SMTP_CODE = os.getenv("SMTP_CODE")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
+
 
 # 通用重试装饰器
 def create_retry_decorator(stop_attempts=RETRY_ATTEMPTS, wait_strategy=None):
@@ -76,6 +80,70 @@ request_retry = create_retry_decorator(
     )
 )
 
+class TokenManager:
+    """Token管理器，负责token的保存和读取"""
+    
+    @staticmethod
+    def save_tokens(user_token: str, refresh_token: str) -> None:
+        """保存token到加密的zip文件"""
+        try:
+            # 创建token数据
+            token_data = {
+                "user_token": user_token,
+                "refresh_token": refresh_token,
+                "saved_at": DataManager.get_cst_time_str("%Y-%m-%d %H:%M:%S")
+            }
+            
+            # 将token数据转换为JSON字符串
+            token_json = json.dumps(token_data, ensure_ascii=False, indent=2)
+            
+            # 创建内存中的zip文件
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                # 直接添加文件内容，不创建目录结构
+                zip_file.writestr("tokens.json", token_json)
+                # 设置密码加密
+                zip_file.setpassword(PASSWORD)
+            
+            # 保存到文件
+            with open(TOKEN_ZIP_PATH, 'wb') as f:
+                f.write(zip_buffer.getvalue())
+            
+            logger.info(f"Token已保存到加密文件: {TOKEN_ZIP_PATH}")
+            
+        except Exception as e:
+            logger.error(f"保存token失败: {e}")
+            raise
+
+    @staticmethod
+    def load_tokens() -> Optional[Dict[str, str]]:
+        """从加密的zip文件加载token"""
+        try:
+            if not path.exists(TOKEN_ZIP_PATH):
+                logger.info("Token文件不存在，将使用账号密码登录")
+                return None
+            
+            with open(TOKEN_ZIP_PATH, 'rb') as f:
+                zip_buffer = io.BytesIO(f.read())
+            
+            with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
+                # 设置解密密码
+                zip_file.setpassword(PASSWORD)
+                # 读取token文件
+                with zip_file.open("tokens.json") as token_file:
+                    token_data = json.load(token_file)
+            
+            logger.info(f"从文件加载token成功，保存时间: {token_data.get('saved_at', '未知')}")
+            return token_data
+            
+        except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as e:
+            logger.warning(f"读取token文件失败，将使用账号密码登录: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"加载token时发生错误: {e}")
+            return None
+
+
 class EnergyMonitor:
     """电量监控器，负责获取电量信息"""
     
@@ -83,11 +151,46 @@ class EnergyMonitor:
         self.cas_client = CASClient(ACCOUNT, PASSWORD)
         self.get_energy_balance = create_retry_decorator()(self._get_energy_balance)
 
+    def _initialize_cas_client(self) -> bool:
+        """初始化CAS客户端，尝试使用token登录"""
+        # 尝试从文件加载token
+        token_data = TokenManager.load_tokens()
+        
+        if token_data and token_data.get('user_token') and token_data.get('refresh_token'):
+            try:
+                logger.info("尝试使用保存的token登录...")
+                self.cas_client.set_token(token_data['user_token'], token_data['refresh_token'])
+                self.cas_client.login()  # 这会验证token的有效性
+                
+                if self.cas_client.logged_in:
+                    logger.info("使用保存的token登录成功")
+                    return True
+                else:
+                    logger.warning("保存的token已失效，将使用账号密码重新登录")
+            except Exception as e:
+                logger.warning(f"使用token登录失败: {e}，将使用账号密码登录")
+        
+        # 使用账号密码登录
+        logger.info("使用账号密码进行CAS认证...")
+        self.cas_client.login()
+        
+        if self.cas_client.logged_in:
+            logger.info("CAS认证成功")
+            # 保存新的token
+            try:
+                TokenManager.save_tokens(self.cas_client.user_token, self.cas_client.refresh_token)
+            except Exception as e:
+                logger.error(f"保存token失败: {e}，但登录成功，继续执行")
+            return True
+        else:
+            logger.error("CAS认证失败")
+            return False
+
     def _get_energy_balance(self) -> Dict[str, float]:
         """使用新的 zzupy 库获取电量余额"""
-        logger.info("尝试进行 CAS 认证...")
-        self.cas_client.login()
-        logger.info("CAS 认证成功")
+        # 初始化CAS客户端
+        if not self._initialize_cas_client():
+            raise Exception("CAS认证失败，无法获取电量信息")
         
         logger.info("创建一卡通客户端并登录...")
         with ECardClient(self.cas_client) as ecard:
