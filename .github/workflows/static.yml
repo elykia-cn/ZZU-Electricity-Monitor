@@ -43,7 +43,6 @@ jobs:
           cp -r /tmp/repo/data/* ./page/data/
           # 清理临时文件
           rm -rf /tmp/repo
-          rm -rf ./page/data/tokens.zip
           
       - name: Run python script
         env:
@@ -72,7 +71,6 @@ jobs:
         run: |
           mkdir pages
           cp -r ./page/data ./page/favicon.ico ./page/index.html ./page/style.css ./page/README.md  pages/
-          rm -rf ./pages/data/tokens.zip
           cd pages
           git init
           git add .
