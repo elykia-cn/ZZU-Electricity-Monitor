@@ -442,8 +442,12 @@ def main():
     
     data = DataManager.record_data(latest_record)
     DataManager.parse_and_update_data(data)
+    
+    # 强制清理资源
+    try:
+        if hasattr(monitor.cas_client, '_client'):
+            monitor.cas_client._client.close()
+    except Exception as e:
+        logger.debug(f"关闭CAS客户端时出错: {e}")
+    
     logger.info("程序运行结束")
-
-
-if __name__ == "__main__":
-    main()
