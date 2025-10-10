@@ -2,7 +2,7 @@ name: Update
 
 on:
   schedule:
-    - cron: '0 1,4,7,10,13,16,19,22, * * *'
+    - cron: '0 0,4,8,12,16,20 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -20,18 +20,19 @@ jobs:
       changes: ${{ steps.check_changes.outputs.changes }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 2
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
         with:
-          python-version: 3.13
+          python-version: 3.14
+          cache: 'pip'  # 启用依赖缓存，加速后续构建
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
       - name: Clone page branch
@@ -114,11 +115,5 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: liskin/gh-workflow-keepalive@v1
-      
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: gautamkrishnar/keepalive-workflow@v2
-#        with:
-#          committer_username: "github-actions[bot]"
-#          committer_email: "github-actions[bot]@users.noreply.github.com"
+      - name: Keep workflow active
+        uses: liskin/gh-workflow-keepalive@v1
