@@ -11,7 +11,7 @@ from email.mime.text import MIMEText
 from glob import glob
 from os import makedirs, path
 from typing import List, Dict, Optional, Union
-
+import pyzipper
 import pytz
 import requests
 from tenacity import (
@@ -88,7 +88,7 @@ class TokenManager:
     
     @staticmethod
     def save_tokens(user_token: str, refresh_token: str) -> None:
-        """保存token到加密的zip文件"""
+        """保存token到加密的zip文件（AES加密）"""
         try:
             token_data = {
                 "user_token": user_token,
@@ -96,14 +96,12 @@ class TokenManager:
                 "saved_at": DataManager.get_cst_time_str("%Y-%m-%d %H:%M:%S")
             }
             token_json = json.dumps(token_data, ensure_ascii=False, indent=2)
-            
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                zip_file.writestr("tokens.json", token_json)
+
+            with pyzipper.AESZipFile(TOKEN_ZIP_PATH, 'w',
+                                     compression=pyzipper.ZIP_DEFLATED,
+                                     encryption=pyzipper.WZ_AES) as zip_file:
                 zip_file.setpassword(PASSWORD.encode('utf-8'))
-            
-            with open(TOKEN_ZIP_PATH, 'wb') as f:
-                f.write(zip_buffer.getvalue())
+                zip_file.writestr("tokens.json", token_json)
             
             logger.info(f"Token已保存到加密文件: {TOKEN_ZIP_PATH}")
         except Exception as e:
@@ -118,10 +116,7 @@ class TokenManager:
                 logger.info("Token文件不存在，将使用账号密码登录")
                 return None
             
-            with open(TOKEN_ZIP_PATH, 'rb') as f:
-                zip_buffer = io.BytesIO(f.read())
-            
-            with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
+            with pyzipper.AESZipFile(TOKEN_ZIP_PATH, 'r') as zip_file:
                 zip_file.setpassword(PASSWORD.encode('utf-8'))
                 with zip_file.open("tokens.json") as token_file:
                     token_data = json.load(token_file)
@@ -129,7 +124,7 @@ class TokenManager:
             logger.info(f"从文件加载token成功，保存时间: {token_data.get('saved_at', '未知')}")
             return token_data
             
-        except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as e:
+        except (pyzipper.zipfile.BadZipFile, KeyError, json.JSONDecodeError) as e:
             logger.warning(f"读取token文件失败，将使用账号密码登录: {e}")
             return None
         except Exception as e:
