@@ -90,24 +90,42 @@ class TokenManager:
     def save_tokens(user_token: str, refresh_token: str) -> None:
         """保存token到加密的zip文件"""
         try:
+            # 确保目录存在
+            os.makedirs(JSON_FOLDER_PATH, exist_ok=True)
+            
             token_data = {
                 "user_token": user_token,
                 "refresh_token": refresh_token,
                 "saved_at": DataManager.get_cst_time_str("%Y-%m-%d %H:%M:%S")
             }
-            token_json = json.dumps(token_data, ensure_ascii=False, indent=2)
             
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                zip_file.writestr("tokens.json", token_json)
-                zip_file.setpassword(PASSWORD.encode('utf-8'))
+            # 创建临时json文件
+            temp_json_path = path.join(JSON_FOLDER_PATH, "tokens_temp.json")
+            with open(temp_json_path, 'w', encoding='utf-8') as f:
+                json.dump(token_data, f, ensure_ascii=False, indent=2)
             
-            with open(TOKEN_ZIP_PATH, 'wb') as f:
-                f.write(zip_buffer.getvalue())
+            # 使用pyminizip加密压缩
+            import pyminizip
+            pyminizip.compress(
+                temp_json_path,  # 输入文件
+                "",  # 不添加前缀
+                TOKEN_ZIP_PATH,  # 输出文件
+                PASSWORD,  # 密码
+                5  # 压缩级别 (0-9)
+            )
+            
+            # 删除临时文件
+            os.remove(temp_json_path)
             
             logger.info(f"Token已保存到加密文件: {TOKEN_ZIP_PATH}")
         except Exception as e:
             logger.error(f"保存token失败: {e}")
+            # 清理临时文件
+            if path.exists(temp_json_path):
+                try:
+                    os.remove(temp_json_path)
+                except:
+                    pass
             raise
 
     @staticmethod
@@ -118,23 +136,39 @@ class TokenManager:
                 logger.info("Token文件不存在，将使用账号密码登录")
                 return None
             
-            with open(TOKEN_ZIP_PATH, 'rb') as f:
-                zip_buffer = io.BytesIO(f.read())
-            
-            with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
-                zip_file.setpassword(PASSWORD.encode('utf-8'))
-                with zip_file.open("tokens.json") as token_file:
-                    token_data = json.load(token_file)
+            # 创建临时目录用于解压
+            import tempfile
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # 使用pyminizip解压
+                import pyminizip
+                pyminizip.uncompress(
+                    TOKEN_ZIP_PATH,
+                    PASSWORD,
+                    temp_dir,
+                    0  # 不保留文件结构
+                )
+                
+                # 读取解压后的文件
+                token_file_path = path.join(temp_dir, "tokens_temp.json")
+                with open(token_file_path, 'r', encoding='utf-8') as f:
+                    token_data = json.load(f)
             
             logger.info(f"从文件加载token成功，保存时间: {token_data.get('saved_at', '未知')}")
             return token_data
             
-        except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as e:
+        except Exception as e:
             logger.warning(f"读取token文件失败，将使用账号密码登录: {e}")
             return None
+
+    @staticmethod
+    def delete_tokens() -> None:
+        """删除token文件"""
+        try:
+            if path.exists(TOKEN_ZIP_PATH):
+                os.remove(TOKEN_ZIP_PATH)
+                logger.info("Token文件已删除")
         except Exception as e:
-            logger.error(f"加载token时发生错误: {e}")
-            return None
+            logger.error(f"删除token文件失败: {e}")
 
 
 class EnergyMonitor:
@@ -158,8 +192,12 @@ class EnergyMonitor:
                     return True
                 else:
                     logger.warning("保存的token已失效，将使用账号密码重新登录")
+                    # token失效时删除文件
+                    TokenManager.delete_tokens()
             except Exception as e:
                 logger.warning(f"使用token登录失败: {e}，将使用账号密码登录")
+                # token失效时删除文件
+                TokenManager.delete_tokens()
         
         logger.info("使用账号密码进行CAS认证...")
         self.cas_client.login()
@@ -192,6 +230,7 @@ class EnergyMonitor:
             return {"lt_Balance": lt_balance, "ac_Balance": ac_balance}
 
 
+# 其余类保持不变...
 class NotificationManager:
     """通知管理器，负责发送各种通知"""
     
