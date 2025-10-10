@@ -97,10 +97,13 @@ class TokenManager:
             }
             token_json = json.dumps(token_data, ensure_ascii=False, indent=2)
 
-            with pyzipper.AESZipFile(TOKEN_ZIP_PATH, 'w',
-                                     compression=pyzipper.ZIP_DEFLATED,
-                                     encryption=pyzipper.WZ_AES) as zip_file:
-                zip_file.setpassword(PASSWORD.encode('utf-8'))
+            # 使用 AES 加密写入 ZIP
+            with pyzipper.AESZipFile(
+                TOKEN_ZIP_PATH, 'w',
+                compression=pyzipper.ZIP_DEFLATED,
+                encryption=pyzipper.WZ_AES
+            ) as zip_file:
+                zip_file.setpassword(PASSWORD.encode('utf-8'))  # 写入时密码必须设置
                 zip_file.writestr("tokens.json", token_json)
             
             logger.info(f"Token已保存到加密文件: {TOKEN_ZIP_PATH}")
@@ -117,7 +120,7 @@ class TokenManager:
                 return None
             
             with pyzipper.AESZipFile(TOKEN_ZIP_PATH, 'r') as zip_file:
-                zip_file.setpassword(PASSWORD.encode('utf-8'))
+                zip_file.setpassword(PASSWORD.encode('utf-8'))  # 解密时设置密码
                 with zip_file.open("tokens.json") as token_file:
                     token_data = json.load(token_file)
             
@@ -126,6 +129,9 @@ class TokenManager:
             
         except (pyzipper.zipfile.BadZipFile, KeyError, json.JSONDecodeError) as e:
             logger.warning(f"读取token文件失败，将使用账号密码登录: {e}")
+            return None
+        except RuntimeError as e:  # AES解密密码错误会抛 RuntimeError
+            logger.error(f"加载token失败，可能密码错误: {e}")
             return None
         except Exception as e:
             logger.error(f"加载token时发生错误: {e}")
