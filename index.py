@@ -102,8 +102,8 @@ class TokenManager:
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                 # 直接添加文件内容，不创建目录结构
                 zip_file.writestr("tokens.json", token_json)
-                # 设置密码加密
-                zip_file.setpassword(PASSWORD)
+                # 设置密码加密 - 修复：将密码编码为bytes
+                zip_file.setpassword(PASSWORD.encode('utf-8'))
             
             # 保存到文件
             with open(TOKEN_ZIP_PATH, 'wb') as f:
@@ -127,8 +127,8 @@ class TokenManager:
                 zip_buffer = io.BytesIO(f.read())
             
             with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
-                # 设置解密密码
-                zip_file.setpassword(PASSWORD)
+                # 设置解密密码 - 修复：将密码编码为bytes
+                zip_file.setpassword(PASSWORD.encode('utf-8'))
                 # 读取token文件
                 with zip_file.open("tokens.json") as token_file:
                     token_data = json.load(token_file)
@@ -142,7 +142,6 @@ class TokenManager:
         except Exception as e:
             logger.error(f"加载token时发生错误: {e}")
             return None
-
 
 class EnergyMonitor:
     """电量监控器，负责获取电量信息"""
