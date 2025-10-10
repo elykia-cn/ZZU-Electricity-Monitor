@@ -72,6 +72,7 @@ jobs:
         run: |
           mkdir pages
           cp -r ./page/data ./page/favicon.ico ./page/index.html ./page/style.css ./page/README.md  pages/
+          rm -rf ./pages/data/tokens.zip
           cd pages
           git init
           git add .
