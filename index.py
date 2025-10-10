@@ -19,7 +19,7 @@ from tenacity import (
     wait_fixed,
     retry_if_exception_type
 )
-from zzupy import ZZUPy
+from zzupy.app import CASClient, ECardClient
 
 # 配置日志
 logging.basicConfig(
@@ -81,21 +81,37 @@ class EnergyMonitor:
     """电量监控器，负责获取电量信息"""
     
     def __init__(self):
-        self.zzupy = ZZUPy(ACCOUNT, PASSWORD)
+        # 使用新版 zzupy.app 的 CASClient + ECardClient
+        self.cas = CASClient(ACCOUNT, PASSWORD)
         self.get_energy_balance = create_retry_decorator()(self._get_energy_balance)
 
     async def _get_energy_balance(self) -> Dict[str, float]:
         """使用 ZZUPy 库获取电量余额（实际实现）"""
         logger.info("尝试登录 ZZUPy 系统...")
-        await self.zzupy.login()
+        # CAS 登录为异步
+        await self.cas.login()
         logger.info("登录成功")
         
         logger.info("获取照明和空调电量余额...")
-        lt_balance = await self.zzupy.get_remaining_energy(LT_ROOM)
-        ac_balance = await self.zzupy.get_remaining_energy(AC_ROOM)
-        
+        # 使用 ECardClient 进行电量查询（假设 API 为异步上下文管理器）
+        lt_balance = 0.0
+        ac_balance = 0.0
+        try:
+            async with ECardClient(self.cas) as ecard:
+                # 假设方法名为 get_remaining_energy，接受 room id
+                lt_balance = await ecard.get_remaining_energy(LT_ROOM)
+                ac_balance = await ecard.get_remaining_energy(AC_ROOM)
+        except Exception as e:
+            logger.error("调用 ECardClient 获取电量失败：%s", e)
+            # 仍然尝试登出 CAS
+            try:
+                await self.cas.logout()
+            except Exception:
+                pass
+            raise
+
         logger.info(f"照明剩余电量：{lt_balance} 度，空调剩余电量：{ac_balance} 度")
-        await self.zzupy.logout()
+        await self.cas.logout()
         logger.info("已登出 ZZUPy 系统")
         return {"lt_Balance": lt_balance, "ac_Balance": ac_balance}
 
@@ -147,24 +163,24 @@ class NotificationManager:
                 
             url = f"https://sctapi.ftqq.com/{key}.send"
             payload = {"title": title, "desp": content}
-
-            def _post_and_parse(u, p):
+            
+            def _post(url_, payload_):
                 try:
-                    r = requests.post(u, data=p, timeout=10)
+                    r = requests.post(url_, data=payload_, timeout=10)
+                    try:
+                        return {"json": r.json(), "text": r.text}
+                    except ValueError:
+                        return {"json": None, "text": r.text}
                 except Exception as e:
-                    return {"_error": str(e), "_text": None}
-                try:
-                    return {"_json": r.json(), "_text": r.text}
-                except ValueError:
-                    return {"_json": None, "_text": r.text}
+                    return {"error": str(e), "text": None}
 
-            result = await asyncio.to_thread(_post_and_parse, url, payload)
+            result = await asyncio.to_thread(_post, url, payload)
 
-            if result.get("_json") is None:
-                logger.error("Server酱返回非 JSON，返回文本：%s", result.get("_text"))
+            if result.get("json") is None:
+                logger.error("Server酱返回非 JSON，返回文本：%s", result.get("text"))
                 continue
 
-            res_json = result.get("_json")
+            res_json = result.get("json")
             if res_json.get("code") == 0:
                 logger.info(f"Server 酱通知发送成功，使用的密钥：{key}")
             else:
@@ -188,7 +204,6 @@ class NotificationManager:
         def _send_email(smtp_server, email, smtp_code, message):
             client = smtplib.SMTP_SSL(smtp_server, smtplib.SMTP_SSL_PORT)
             try:
-                logger.debug("准备连接邮件服务器（线程内）")
                 client.login(email, smtp_code)
                 client.sendmail(email, email, message.as_string())
             finally:
@@ -201,7 +216,7 @@ class NotificationManager:
             await asyncio.to_thread(_send_email, SMTP_SERVER, EMAIL, SMTP_CODE, msg)
             logger.info("邮件发送成功")
         except Exception as e:
-            logger.error("邮件通知发送失败：%s", e)
+            logger.error(f"邮件通知发送失败：{e}")
             raise
 
     @staticmethod
@@ -218,21 +233,21 @@ class NotificationManager:
             "text": f"*{title}*\n\n{content}",
             "parse_mode": "MarkdownV2"
         }
-
+        
         def _post(u, p):
             r = requests.post(u, data=p, timeout=10)
             return r.status_code, r.text
 
         status_code, text = await asyncio.to_thread(_post, url, payload)
         try:
-            res = json.loads(text)
+            result = json.loads(text)
         except Exception:
-            res = None
+            result = None
 
-        if not res or not res.get("ok"):
-            desc = res.get("description") if isinstance(res, dict) else text
+        if not result or not result.get("ok"):
+            desc = result.get("description") if isinstance(result, dict) else text
             raise requests.exceptions.RequestException(desc)
-
+        
         logger.info("Telegram 通知发送成功")
 
     @classmethod
