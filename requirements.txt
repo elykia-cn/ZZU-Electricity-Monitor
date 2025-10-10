@@ -2,4 +2,4 @@ requests
 zzupy
 pytz
 tenacity
-pyminizip
+pyzipper
