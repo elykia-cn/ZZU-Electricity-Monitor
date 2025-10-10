@@ -34,7 +34,10 @@ logger = logging.getLogger(__name__)
 # 常量定义
 THRESHOLD = 10.0
 EXCELLENT_THRESHOLD = 100.0
-JSON_FOLDER_PATH = "./page/data"
+
+# 使用绝对路径避免问题
+BASE_DIR = path.dirname(path.abspath(__file__))
+JSON_FOLDER_PATH = path.join(BASE_DIR, "page", "data")
 TOKEN_ZIP_PATH = path.join(JSON_FOLDER_PATH, "tokens.zip")
 
 # 重试配置常量
@@ -54,6 +57,18 @@ SERVERCHAN_KEYS = os.getenv("SERVERCHAN_KEYS")
 EMAIL = os.getenv("EMAIL")
 SMTP_CODE = os.getenv("SMTP_CODE")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
+
+
+# 确保目录存在
+def ensure_directory_exists(dir_path: str) -> None:
+    """确保目录存在，如果不存在则创建"""
+    if not path.exists(dir_path):
+        try:
+            makedirs(dir_path, exist_ok=True)
+            logger.info(f"创建目录: {dir_path}")
+        except Exception as e:
+            logger.error(f"创建目录失败 {dir_path}: {e}")
+            raise
 
 
 # 通用重试装饰器
@@ -89,9 +104,10 @@ class TokenManager:
     @staticmethod
     def save_tokens(user_token: str, refresh_token: str) -> None:
         """保存token到加密的zip文件"""
+        temp_json_path = None
         try:
             # 确保目录存在
-            os.makedirs(JSON_FOLDER_PATH, exist_ok=True)
+            ensure_directory_exists(JSON_FOLDER_PATH)
             
             token_data = {
                 "user_token": user_token,
@@ -105,28 +121,32 @@ class TokenManager:
                 json.dump(token_data, f, ensure_ascii=False, indent=2)
             
             # 使用pyminizip加密压缩
-            import pyminizip
-            pyminizip.compress(
-                temp_json_path,  # 输入文件
-                "",  # 不添加前缀
-                TOKEN_ZIP_PATH,  # 输出文件
-                PASSWORD,  # 密码
-                5  # 压缩级别 (0-9)
-            )
+            try:
+                import pyminizip
+                pyminizip.compress(
+                    temp_json_path,  # 输入文件
+                    "",  # 不添加前缀
+                    TOKEN_ZIP_PATH,  # 输出文件
+                    PASSWORD,  # 密码
+                    5  # 压缩级别 (0-9)
+                )
+            except ImportError:
+                logger.warning("pyminizip未安装，使用普通zip文件存储（无加密）")
+                # 备用方案：使用普通zip文件
+                with zipfile.ZipFile(TOKEN_ZIP_PATH, 'w', zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(temp_json_path, "tokens_temp.json")
             
-            # 删除临时文件
-            os.remove(temp_json_path)
-            
-            logger.info(f"Token已保存到加密文件: {TOKEN_ZIP_PATH}")
+            logger.info(f"Token已保存到文件: {TOKEN_ZIP_PATH}")
         except Exception as e:
             logger.error(f"保存token失败: {e}")
+            raise
+        finally:
             # 清理临时文件
-            if path.exists(temp_json_path):
+            if temp_json_path and path.exists(temp_json_path):
                 try:
                     os.remove(temp_json_path)
-                except:
-                    pass
-            raise
+                except Exception as e:
+                    logger.warning(f"删除临时文件失败: {e}")
 
     @staticmethod
     def load_tokens() -> Optional[Dict[str, str]]:
@@ -139,17 +159,27 @@ class TokenManager:
             # 创建临时目录用于解压
             import tempfile
             with tempfile.TemporaryDirectory() as temp_dir:
-                # 使用pyminizip解压
-                import pyminizip
-                pyminizip.uncompress(
-                    TOKEN_ZIP_PATH,
-                    PASSWORD,
-                    temp_dir,
-                    0  # 不保留文件结构
-                )
+                try:
+                    # 尝试使用pyminizip解压
+                    import pyminizip
+                    pyminizip.uncompress(
+                        TOKEN_ZIP_PATH,
+                        PASSWORD,
+                        temp_dir,
+                        0  # 不保留文件结构
+                    )
+                except ImportError:
+                    # 备用方案：使用普通zip文件
+                    logger.warning("pyminizip未安装，尝试使用普通zip文件读取")
+                    with zipfile.ZipFile(TOKEN_ZIP_PATH, 'r') as zf:
+                        zf.extractall(temp_dir)
                 
                 # 读取解压后的文件
                 token_file_path = path.join(temp_dir, "tokens_temp.json")
+                if not path.exists(token_file_path):
+                    logger.warning("Token文件格式不正确")
+                    return None
+                    
                 with open(token_file_path, 'r', encoding='utf-8') as f:
                     token_data = json.load(f)
             
@@ -230,7 +260,6 @@ class EnergyMonitor:
             return {"lt_Balance": lt_balance, "ac_Balance": ac_balance}
 
 
-# 其余类保持不变...
 class NotificationManager:
     """通知管理器，负责发送各种通知"""
     
@@ -298,11 +327,15 @@ class NotificationManager:
         msg['From'] = EMAIL
         msg['To'] = EMAIL
 
-        client = smtplib.SMTP_SSL(SMTP_SERVER, smtplib.SMTP_SSL_PORT)
-        client.login(EMAIL, SMTP_CODE)
-        client.sendmail(EMAIL, EMAIL, msg.as_string())
-        client.quit()
-        logger.info("邮件发送成功")
+        try:
+            client = smtplib.SMTP_SSL(SMTP_SERVER, smtplib.SMTP_SSL_PORT)
+            client.login(EMAIL, SMTP_CODE)
+            client.sendmail(EMAIL, EMAIL, msg.as_string())
+            client.quit()
+            logger.info("邮件发送成功")
+        except Exception as e:
+            logger.error(f"邮件发送失败: {e}")
+            raise
 
     @staticmethod
     @request_retry
@@ -364,7 +397,7 @@ class DataManager:
         try:
             dirpath = path.dirname(file_path)
             if dirpath and not path.exists(dirpath):
-                makedirs(dirpath, exist_ok=True)
+                ensure_directory_exists(dirpath)
             with open(file_path, "w", encoding="utf-8") as file:
                 json.dump(data, file, ensure_ascii=False, indent=indent)
             logger.info(f"数据成功保存到文件：{file_path}")
@@ -381,10 +414,14 @@ class DataManager:
 
     @classmethod
     def update_time_list(cls) -> List[str]:
-        if not path.exists(JSON_FOLDER_PATH):
-            raise FileNotFoundError(f"文件夹路径不存在：{JSON_FOLDER_PATH}")
+        # 确保数据目录存在
+        ensure_directory_exists(JSON_FOLDER_PATH)
 
-        time_json_path = './page/data/time.json'
+        time_json_path = path.join(BASE_DIR, 'page', 'data', 'time.json')
+        
+        # 确保time.json的目录存在
+        ensure_directory_exists(path.dirname(time_json_path))
+
         if not path.exists(time_json_path):
             cls.dump_data_into_json([], time_json_path)
 
@@ -400,14 +437,19 @@ class DataManager:
 
     @classmethod
     def parse_and_update_data(cls, existing_data: Optional[List[Dict]]) -> None:
-        time_file_list = cls.update_time_list()
-        existing_data_length = len(existing_data) if existing_data else 0
-        if existing_data_length < 30 and len(time_file_list) > 1:
-            prev_month_data = cls.load_data_from_json(f"{JSON_FOLDER_PATH}/{time_file_list[1]}.json") or []
-            records_to_retrieve = min(30 - existing_data_length, len(prev_month_data))
-            existing_data = prev_month_data[-records_to_retrieve:] + (existing_data or [])
-        cls.dump_data_into_json((existing_data or [])[-30:], f"{JSON_FOLDER_PATH}/last_30_records.json")
-        logger.info("数据解析和更新完成")
+        try:
+            time_file_list = cls.update_time_list()
+            existing_data_length = len(existing_data) if existing_data else 0
+            if existing_data_length < 30 and len(time_file_list) > 1:
+                prev_month_data = cls.load_data_from_json(f"{JSON_FOLDER_PATH}/{time_file_list[1]}.json") or []
+                records_to_retrieve = min(30 - existing_data_length, len(prev_month_data))
+                existing_data = prev_month_data[-records_to_retrieve:] + (existing_data or [])
+            
+            last_30_records_path = path.join(JSON_FOLDER_PATH, "last_30_records.json")
+            cls.dump_data_into_json((existing_data or [])[-30:], last_30_records_path)
+            logger.info("数据解析和更新完成")
+        except Exception as e:
+            logger.error(f"数据解析和更新失败: {e}")
 
 
 def main():
@@ -418,6 +460,9 @@ def main():
     if missing_vars:
         logger.error(f"缺少必要的环境变量: {', '.join(missing_vars)}")
         return
+
+    # 确保数据目录存在
+    ensure_directory_exists(JSON_FOLDER_PATH)
 
     monitor = EnergyMonitor()
     try:
@@ -435,9 +480,13 @@ def main():
         "ac_Balance": balances["ac_Balance"]
     }
 
-    data = DataManager.record_data(latest_record)
-    DataManager.parse_and_update_data(data)
-    logger.info("程序运行结束")
+    try:
+        data = DataManager.record_data(latest_record)
+        DataManager.parse_and_update_data(data)
+        logger.info("程序运行结束")
+    except Exception as e:
+        logger.error(f"数据记录失败: {e}")
+
 
 if __name__ == "__main__":
     main()
@@ -447,7 +496,7 @@ if __name__ == "__main__":
         print(f"存活线程: {t.name}, daemon={t.daemon}")
 
     # 优雅退出
-    import time, os
+    import time
     logging.shutdown()
     time.sleep(0.5)
     os._exit(0)  # 确保彻底退出
