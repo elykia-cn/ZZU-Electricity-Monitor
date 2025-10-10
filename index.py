@@ -451,3 +451,6 @@ def main():
         logger.debug(f"关闭CAS客户端时出错: {e}")
     
     logger.info("程序运行结束")
+
+if __name__ == "__main__":
+    main()
