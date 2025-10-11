@@ -2,4 +2,3 @@ requests
 zzupy
 pytz
 tenacity
-pyzipper
