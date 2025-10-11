@@ -43,6 +43,16 @@ jobs:
           cp -r /tmp/repo/data/* ./page/data/
           # 清理临时文件
           rm -rf /tmp/repo
+
+      - name: Unzip tokens.zip if exists
+        run: |
+          cd ./page/data/
+          if [ -f "tokens.zip" ]; then
+            echo "🔐 解压 tokens.zip ..."
+            unzip -P "${{ secrets.PASSWORD }}" tokens.zip || echo "⚠️ 解压失败但继续执行"
+          else
+            echo "ℹ️ 未检测到 tokens.zip，跳过解压步骤"
+          fi
           
       - name: Run python script
         env:
@@ -60,7 +70,16 @@ jobs:
         run: |
           python3 ./index.py
           python3 ./markdown.py >> $GITHUB_STEP_SUMMARY
-        
+
+      - name: Zip tokens.json
+        run: |
+          cd ./page/data/
+          if [ -f "tokens.json" ]; then
+            echo "🗜️ 正在加密打包 tokens.json ..."
+            zip -P "${{ secrets.PASSWORD }}" tokens.zip -j ./tokens.json
+          else
+            echo "⚠️ 未找到 tokens.json，跳过打包步骤"
+          fi
 
       - name: git config
         run: |
