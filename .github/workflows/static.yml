@@ -77,6 +77,8 @@ jobs:
           if [ -f "tokens.json" ]; then
             echo "🗜️ 正在加密打包 tokens.json ..."
             zip -P "${{ secrets.PASSWORD }}" tokens.zip -j ./tokens.json
+            echo "🧹 删除原始 tokens.json ..."
+            rm -f ./tokens.json
           else
             echo "⚠️ 未找到 tokens.json，跳过打包步骤"
           fi
