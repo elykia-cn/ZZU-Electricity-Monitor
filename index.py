@@ -2,8 +2,6 @@ import logging
 import os
 import json
 import smtplib
-import zipfile
-import io
 import sys
 import threading
 from datetime import datetime
@@ -11,7 +9,6 @@ from email.mime.text import MIMEText
 from glob import glob
 from os import makedirs, path
 from typing import List, Dict, Optional, Union
-import pyzipper
 import pytz
 import requests
 from tenacity import (
@@ -35,7 +32,7 @@ logger = logging.getLogger(__name__)
 THRESHOLD = 10.0
 EXCELLENT_THRESHOLD = 100.0
 JSON_FOLDER_PATH = "./page/data"
-TOKEN_ZIP_PATH = path.join(JSON_FOLDER_PATH, "tokens.zip")
+TOKEN_JSON_PATH = path.join(JSON_FOLDER_PATH, "tokens.json")
 
 # 重试配置常量
 RETRY_ATTEMPTS = 5
@@ -88,50 +85,43 @@ class TokenManager:
     
     @staticmethod
     def save_tokens(user_token: str, refresh_token: str) -> None:
-        """保存token到加密的zip文件（AES加密）"""
+        """保存token到JSON文件"""
         try:
             token_data = {
                 "user_token": user_token,
                 "refresh_token": refresh_token,
                 "saved_at": DataManager.get_cst_time_str("%Y-%m-%d %H:%M:%S")
             }
-            token_json = json.dumps(token_data, ensure_ascii=False, indent=2)
-
-            # 使用 AES 加密写入 ZIP
-            with pyzipper.AESZipFile(
-                TOKEN_ZIP_PATH, 'w',
-                compression=pyzipper.ZIP_DEFLATED,
-                encryption=pyzipper.WZ_AES
-            ) as zip_file:
-                zip_file.setpassword(PASSWORD.encode('utf-8'))  # 写入时密码必须设置
-                zip_file.writestr("tokens.json", token_json)
             
-            logger.info(f"Token已保存到加密文件: {TOKEN_ZIP_PATH}")
+            # 确保目录存在
+            dirpath = path.dirname(TOKEN_JSON_PATH)
+            if dirpath and not path.exists(dirpath):
+                makedirs(dirpath, exist_ok=True)
+                
+            with open(TOKEN_JSON_PATH, "w", encoding="utf-8") as file:
+                json.dump(token_data, file, ensure_ascii=False, indent=2)
+            
+            logger.info(f"Token已保存到文件: {TOKEN_JSON_PATH}")
         except Exception as e:
             logger.error(f"保存token失败: {e}")
             raise
 
     @staticmethod
     def load_tokens() -> Optional[Dict[str, str]]:
-        """从加密的zip文件加载token"""
+        """从JSON文件加载token"""
         try:
-            if not path.exists(TOKEN_ZIP_PATH):
+            if not path.exists(TOKEN_JSON_PATH):
                 logger.info("Token文件不存在，将使用账号密码登录")
                 return None
             
-            with pyzipper.AESZipFile(TOKEN_ZIP_PATH, 'r') as zip_file:
-                zip_file.setpassword(PASSWORD.encode('utf-8'))  # 解密时设置密码
-                with zip_file.open("tokens.json") as token_file:
-                    token_data = json.load(token_file)
+            with open(TOKEN_JSON_PATH, "r", encoding="utf-8") as file:
+                token_data = json.load(file)
             
             logger.info(f"从文件加载token成功，保存时间: {token_data.get('saved_at', '未知')}")
             return token_data
             
-        except (pyzipper.zipfile.BadZipFile, KeyError, json.JSONDecodeError) as e:
+        except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.warning(f"读取token文件失败，将使用账号密码登录: {e}")
-            return None
-        except RuntimeError as e:  # AES解密密码错误会抛 RuntimeError
-            logger.error(f"加载token失败，可能密码错误: {e}")
             return None
         except Exception as e:
             logger.error(f"加载token时发生错误: {e}")
