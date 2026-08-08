@@ -1,0 +1,227 @@
+[
+  {
+    "time": "08-01 00:01:02",
+    "light_Balance": 3.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-01 04:00:49",
+    "light_Balance": 3.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-01 08:00:39",
+    "light_Balance": 3.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-01 12:00:39",
+    "light_Balance": -0.5,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-01 16:00:47",
+    "light_Balance": -6.5,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-01 20:00:52",
+    "light_Balance": -7.5,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-02 00:00:38",
+    "light_Balance": -7.9,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-02 04:00:39",
+    "light_Balance": -7.9,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-02 08:00:38",
+    "light_Balance": -8.5,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-02 12:00:38",
+    "light_Balance": -8.5,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-02 16:00:30",
+    "light_Balance": -8.5,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-02 20:00:38",
+    "light_Balance": -8.5,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-03 00:00:43",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-03 04:00:53",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-03 08:00:43",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-03 12:00:37",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-03 20:00:42",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-04 00:00:47",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-04 04:00:43",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-04 08:00:46",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-04 12:00:41",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-04 16:00:35",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-04 20:01:00",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-05 00:00:44",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-05 04:01:48",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-05 08:00:52",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-05 12:00:46",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-05 16:00:41",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-05 20:01:01",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-06 00:01:22",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-06 04:01:20",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-06 08:01:00",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-06 12:00:48",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-06 16:00:54",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-06 20:01:08",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.4
+  },
+  {
+    "time": "08-07 08:00:58",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.5
+  },
+  {
+    "time": "08-07 12:05:46",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.5
+  },
+  {
+    "time": "08-07 16:00:51",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.5
+  },
+  {
+    "time": "08-07 20:04:49",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.5
+  },
+  {
+    "time": "08-08 00:01:36",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.6
+  },
+  {
+    "time": "08-08 04:01:24",
+    "light_Balance": -9.0,
+    "ac_Balance": -68.6
+  },
+  {
+    "time": "08-08 08:01:03",
+    "light_Balance": -9.0,
+    "ac_Balance": -69.4
+  },
+  {
+    "time": "08-08 12:01:02",
+    "light_Balance": -9.0,
+    "ac_Balance": -74.4
+  },
+  {
+    "time": "08-08 16:00:41",
+    "light_Balance": -9.0,
+    "ac_Balance": -76.4
+  },
+  {
+    "time": "08-08 20:01:03",
+    "light_Balance": -9.0,
+    "ac_Balance": -76.4
+  }
+]

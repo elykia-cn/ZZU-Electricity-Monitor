@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>宿舍电量监控</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="https://registry.npmmirror.com/lxgw-wenkai-screen-web/latest/files/lxgwwenkaigbscreen/result.css">
+    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
+    <script src="https://registry.npmmirror.com/echarts/latest/files/dist/echarts.min.js"></script>
+</head>
+<body>
+    <!-- 背景动画 -->
+    <div class="bg-animation">
+        <div class="bg-gradient"></div>
+        <div class="bg-grid"></div>
+        <div class="floating-orbs">
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
+        </div>
+    </div>
+
+    <div class="app">
+        <!-- 顶部导航 -->
+        <nav class="navbar glass">
+            <div class="nav-brand">
+                <span class="brand-icon">⚡</span>
+                <span class="brand-text">电量监控</span>
+            </div>
+            <div class="nav-actions">
+                <button id="room-query-btn" class="btn-icon" title="房间查询器">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                </button>
+                <button id="report-btn" class="btn-icon" title="年度总结">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                </button>
+                <button id="refresh-btn" class="btn-icon" title="刷新数据">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                    </svg>
+                </button>
+                <button id="theme-toggle" class="btn-icon" title="切换主题">
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 状态概览 -->
+            <section class="overview">
+                <div class="stat-card glass card-light">
+                    <div class="stat-header">
+                        <div class="stat-icon">💡</div>
+                        <div class="stat-trend" id="light-yesterday-trend">
+                            <span class="trend-value">--</span>
+                            <span class="trend-label">昨日共消耗</span>
+                        </div>
+                        <div class="stat-trend" id="light-trend">
+                            <span class="trend-value">--</span>
+                            <span class="trend-label">今日已消耗</span>
+                        </div>
+                    </div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="light-value">--</div>
+                        <div class="stat-label">照明电量 (kWh)</div>
+                    </div>
+                    <div class="stat-footer">
+                        <div class="progress-bar">
+                            <div class="progress-fill light-fill" id="light-progress"></div>
+                        </div>
+                        <span class="stat-status" id="light-status">加载中...</span>
+                    </div>
+                    <div class="stat-glow light-glow"></div>
+                </div>
+
+                <div class="stat-card glass card-ac">
+                    <div class="stat-header">
+                        <div class="stat-icon">
+                            ❄️
+                        </div>
+                        <div class="stat-trend" id="ac-yesterday-trend">
+                            <span class="trend-value">--</span>
+                            <span class="trend-label">昨日共消耗</span>
+                        </div>
+                        <div class="stat-trend" id="ac-trend">
+                            <span class="trend-value">--</span>
+                            <span class="trend-label">今日已消耗</span>
+                        </div>
+                    </div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="ac-value">--</div>
+                        <div class="stat-label">空调电量 (kWh)</div>
+                    </div>
+                    <div class="stat-footer">
+                        <div class="progress-bar">
+                            <div class="progress-fill ac-fill" id="ac-progress"></div>
+                        </div>
+                        <span class="stat-status" id="ac-status">加载中...</span>
+                    </div>
+                    <div class="stat-glow ac-glow"></div>
+                </div>
+
+                <div class="stat-card glass card-info">
+                    <div class="stat-header">
+                        <div class="stat-icon">📊</div>
+                    </div>
+                    <div class="stat-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-value" id="light-avg-daily">--</span>
+                                <span class="info-label">💡 日均消耗</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-value" id="ac-avg-daily">--</span>
+                                <span class="info-label">❄️ 日均消耗</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-value" id="light-days-left">--</span>
+                                <span class="info-label">💡 预计可用</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-value" id="ac-days-left">--</span>
+                                <span class="info-label">❄️ 预计可用</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-value" id="total-consumption">--</span>
+                                <span class="info-label">昨日总消耗</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-value" id="last-update">--</span>
+                                <span class="info-label">更新时间</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-glow info-glow"></div>
+                </div>
+            </section>
+
+            <!-- 图表控制 -->
+            <section class="chart-controls glass">
+                <div class="control-group">
+                    <label>时间范围</label>
+                    <div class="select-wrapper">
+                        <select id="timeSplit">
+                            <option value="last_30_records">最近30条</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>图表类型</label>
+                    <div class="btn-group">
+                        <button class="btn-toggle" data-type="line">曲线</button>
+                        <button class="btn-toggle" data-type="bar">柱状</button>
+                        <button class="btn-toggle active" data-type="area">面积</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 图表区域 -->
+            <section class="charts-section">
+                <div class="chart-container glass">
+                    <div class="chart-header">
+                        <h3>照明电量趋势</h3>
+                        <div class="chart-actions">
+                            <button class="btn-sm" data-zoom="in" title="放大">+</button>
+                            <button class="btn-sm" data-zoom="out" title="缩小">-</button>
+                            <button class="btn-sm" data-zoom="reset" title="重置">↺</button>
+                        </div>
+                    </div>
+                    <div id="chart-light" class="chart"></div>
+                </div>
+
+                <div class="chart-container glass">
+                    <div class="chart-header">
+                        <h3>空调电量趋势</h3>
+                        <div class="chart-actions">
+                            <button class="btn-sm" data-zoom="in" title="放大">+</button>
+                            <button class="btn-sm" data-zoom="out" title="缩小">-</button>
+                            <button class="btn-sm" data-zoom="reset" title="重置">↺</button>
+                        </div>
+                    </div>
+                    <div id="chart-ac" class="chart"></div>
+                </div>
+            </section>
+
+            <!-- 数据统计 -->
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="mini-stat glass">
+                        <div class="mini-stat-icon">📈</div>
+                        <div class="mini-stat-content">
+                            <span class="mini-stat-value" id="max-light">--</span>
+                            <span class="mini-stat-label">照明最高</span>
+                        </div>
+                    </div>
+                    <div class="mini-stat glass">
+                        <div class="mini-stat-icon">📉</div>
+                        <div class="mini-stat-content">
+                            <span class="mini-stat-value" id="min-light">--</span>
+                            <span class="mini-stat-label">照明最低</span>
+                        </div>
+                    </div>
+                    <div class="mini-stat glass">
+                        <div class="mini-stat-icon">📈</div>
+                        <div class="mini-stat-content">
+                            <span class="mini-stat-value" id="max-ac">--</span>
+                            <span class="mini-stat-label">空调最高</span>
+                        </div>
+                    </div>
+                    <div class="mini-stat glass">
+                        <div class="mini-stat-icon">📉</div>
+                        <div class="mini-stat-content">
+                            <span class="mini-stat-value" id="min-ac">--</span>
+                            <span class="mini-stat-label">空调最低</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer glass">
+            <p style="font-size: 14px;">数据每4小时自动更新 · <a href="https://github.com/Elykia093/ZZU-Electricity-Monitor" target="_blank">GitHub</a> · Made by <a href="https://github.com/Elykia093" target="_blank">Elykia</a></p>
+        </footer>
+    </div>
+
+    <!-- 轻提示通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 年度总结模态框 -->
+    <div id="report-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" id="report-content">
+            <div class="report-header">
+                <h2>⚡ <select id="report-year-select" class="year-select"></select> 宿舍用电年度总结</h2>
+                <p class="report-date-range" id="report-date-range">数据范围：加载中...</p>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+
+            <!-- 核心数据卡片 -->
+            <div class="report-cards">
+                <div class="report-card card-total">
+                    <div class="report-card-icon">⚡</div>
+                    <div class="report-card-content">
+                        <div class="report-card-value" id="report-total">--</div>
+                        <div class="report-card-label">全年总用电量</div>
+                        <div class="report-card-sub" id="report-total-year">-- 年</div>
+                    </div>
+                </div>
+                <div class="report-card card-light">
+                    <div class="report-card-icon">💡</div>
+                    <div class="report-card-content">
+                        <div class="report-card-value" id="report-light-total">--</div>
+                        <div class="report-card-label">照明</div>
+                        <div class="report-card-sub" id="report-light-percent">占比 --%</div>
+                    </div>
+                </div>
+                <div class="report-card card-ac-report">
+                    <div class="report-card-icon">❄️</div>
+                    <div class="report-card-content">
+                        <div class="report-card-value" id="report-ac-total">--</div>
+                        <div class="report-card-label">空调</div>
+                        <div class="report-card-sub" id="report-ac-percent">占比 --%</div>
+                    </div>
+                </div>
+                <div class="report-card card-peak">
+                    <div class="report-card-icon">📈</div>
+                    <div class="report-card-content">
+                        <div class="report-card-value" id="report-peak">--</div>
+                        <div class="report-card-label">单日最高用电</div>
+                        <div class="report-card-sub" id="report-peak-date">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 每日用电图表 -->
+            <div class="report-section">
+                <h3>📊 每日用电详情</h3>
+                <div id="chart-daily" class="report-chart"></div>
+            </div>
+
+            <!-- 月度统计图表 -->
+            <div class="report-section">
+                <h3>📅 月度用电统计</h3>
+                <div id="chart-monthly" class="report-chart"></div>
+            </div>
+
+            <!-- 热力图 -->
+            <div class="report-section">
+                <h3>🔥 年度用电热力图</h3>
+                <div id="chart-heatmap" class="report-chart-large"></div>
+            </div>
+
+            <!-- 导出按钮 -->
+            <div class="report-actions">
+                <button id="export-btn" class="btn-export">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    导出为图片
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 房间查询器模态框 -->
+    <div id="room-query-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="report-header">
+                <h2>🏠 宿舍房间查询器</h2>
+                <p class="report-date-range">快速查找您的房间编号，用于配置电量监控</p>
+                <button class="modal-close" id="room-modal-close">&times;</button>
+            </div>
+
+            <!-- 查询表单 -->
+            <div class="room-query-form">
+                <div class="query-row">
+                    <div class="query-field">
+                        <label for="area-select">区域</label>
+                        <div class="select-wrapper">
+                            <select id="area-select">
+                                <option value="">请选择区域</option>
+                                <option value="99">主校区</option>
+                                <option value="101">北校区</option>
+                                <option value="102">东校区</option>
+                                <option value="103">南校区</option>
+                                <option value="104">护理学院</option>
+                                <option value="105">洛阳校区</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="query-field">
+                        <label for="building-select">建筑</label>
+                        <div class="select-wrapper">
+                            <select id="building-select" disabled>
+                                <option value="">请选择建筑</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="query-field">
+                        <label for="unit-select">单元</label>
+                        <div class="select-wrapper">
+                            <select id="unit-select" disabled>
+                                <option value="">请选择单元</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="query-field">
+                        <label for="room-select">房间</label>
+                        <div class="select-wrapper">
+                            <select id="room-select" disabled>
+                                <option value="">请选择房间</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 结果显示 -->
+                <div class="query-result">
+                    <div class="result-card">
+                        <h3>💡 照明房间编号 (LIGHT_ROOM)</h3>
+                        <div class="result-value" id="light-room-result">请先选择房间</div>
+                        <button class="copy-btn" id="copy-light-btn" disabled>复制</button>
+                    </div>
+                    <div class="result-card">
+                        <h3>❄️ 空调房间编号 (AC_ROOM)</h3>
+                        <div class="result-value" id="ac-room-result">请先选择房间</div>
+                        <button class="copy-btn" id="copy-ac-btn" disabled>复制</button>
+                    </div>
+                </div>
+
+                <!-- 使用说明 -->
+                <div class="usage-guide">
+                    <h3>📋 使用说明</h3>
+                    <ol>
+                        <li>依次选择您的区域、建筑、单元和房间号</li>
+                        <li>系统会自动显示对应的照明和空调房间编号</li>
+                        <li>点击"复制"按钮可将编号复制到剪贴板</li>
+                        <li>将复制的编号配置到 GitHub Secrets 中的 LIGHT_ROOM 和 AC_ROOM</li>
+                    </ol>
+                    <div class="campus-codes">
+                        <h4>🏫 校区编号对照</h4>
+                        <p>99(主校区)、101(北校区)、102(东校区)、103(南校区)、104(护理学院)、105(洛阳校区)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
